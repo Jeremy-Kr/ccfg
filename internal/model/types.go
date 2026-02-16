@@ -56,6 +56,7 @@ const (
 	CategoryPolicy                             // 관리자 정책
 	CategoryCommands                           // 커스텀 슬래시 명령어
 	CategorySkills                             // 에이전트 스킬
+	CategoryAgents                             // 커스텀 에이전트 정의
 	CategoryKeybindings                        // 키바인딩 설정
 )
 
@@ -73,6 +74,8 @@ func (c ConfigCategory) String() string {
 		return "Commands"
 	case CategorySkills:
 		return "Skills"
+	case CategoryAgents:
+		return "Agents"
 	case CategoryKeybindings:
 		return "Keybindings"
 	default:

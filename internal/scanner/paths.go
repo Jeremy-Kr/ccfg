@@ -58,6 +58,7 @@ func UserPaths() (string, []FileEntry) {
 		{RelPath: ".mcp.json", Description: "MCP 서버 전역 설정", Category: model.CategoryMCP},
 		{RelPath: filepath.Join(".claude", "commands"), Description: "커스텀 명령어", Category: model.CategoryCommands, IsDir: true},
 		{RelPath: filepath.Join(".claude", "skills"), Description: "에이전트 스킬", Category: model.CategorySkills, IsDir: true},
+		{RelPath: filepath.Join(".claude", "agents"), Description: "커스텀 에이전트", Category: model.CategoryAgents, IsDir: true},
 		{RelPath: filepath.Join(".claude", "keybindings.json"), Description: "키바인딩 설정", Category: model.CategoryKeybindings},
 	}
 }

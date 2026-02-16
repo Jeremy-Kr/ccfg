@@ -35,8 +35,8 @@ func TestUserPaths(t *testing.T) {
 	if base == "" {
 		t.Fatal("UserPaths base가 빈 문자열")
 	}
-	if len(entries) != 8 {
-		t.Errorf("UserPaths entries 개수: got %d, want 8", len(entries))
+	if len(entries) != 9 {
+		t.Errorf("UserPaths entries 개수: got %d, want 9", len(entries))
 	}
 
 	if entries[0].RelPath != ".claude/settings.json" {
@@ -81,6 +81,9 @@ func TestCategoryAssignment(t *testing.T) {
 	}
 	if categoryMap[".claude/skills"] != model.CategorySkills {
 		t.Error("skills의 Category가 CategorySkills가 아님")
+	}
+	if categoryMap[".claude/agents"] != model.CategoryAgents {
+		t.Error("agents의 Category가 CategoryAgents가 아님")
 	}
 	if categoryMap[".claude/keybindings.json"] != model.CategoryKeybindings {
 		t.Error("keybindings.json의 Category가 CategoryKeybindings가 아님")
