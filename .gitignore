@@ -18,3 +18,9 @@ Thumbs.db
 # 환경
 .env
 .env.*
+
+# MCP 서버 메타데이터
+.serena/
+
+# 임시 디버깅 도구
+cmd/verify/

@@ -58,6 +58,7 @@ const (
 	CategorySkills                             // 에이전트 스킬
 	CategoryAgents                             // 커스텀 에이전트 정의
 	CategoryKeybindings                        // 키바인딩 설정
+	CategoryHooks                              // Hooks 설정
 )
 
 func (c ConfigCategory) String() string {
@@ -78,6 +79,8 @@ func (c ConfigCategory) String() string {
 		return "Agents"
 	case CategoryKeybindings:
 		return "Keybindings"
+	case CategoryHooks:
+		return "Hooks"
 	default:
 		return "Unknown"
 	}
@@ -91,6 +94,7 @@ type ConfigFile struct {
 	Category    ConfigCategory // 기능별 분류
 	Exists      bool           // 파일 존재 여부
 	IsDir       bool           // 디렉토리 여부 (commands/, skills/)
+	IsVirtual   bool           // 가상 노드 여부 (JSON 내부 섹션)
 	Size        int64          // 바이트 크기 (존재 시)
 	ModTime     time.Time      // 최종 수정 시간 (존재 시)
 	Description string         // 사용자에게 보여줄 설명
