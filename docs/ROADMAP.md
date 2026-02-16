@@ -41,15 +41,15 @@
 - [x] `~/.claude/keybindings.json` — 키바인딩 설정
 - [x] 디렉토리 스캔 지원 (파일뿐 아니라 commands/, skills/ 하위 파일 나열)
 - [x] ConfigCategory 확장 (Commands, Skills, Keybindings 추가)
-- [ ] settings.json 내부 `"hooks"` 키 파싱 → 훅 목록 트리 표시
-- [ ] settings.json 내부 `"mcpServers"` 키 파싱 → MCP 서버 목록 표시
+- [x] settings.json 내부 `"hooks"` 키 파싱 → 훅 목록 트리 표시
+- [x] settings.json 내부 `"mcpServers"` 키 파싱 → MCP 서버 목록 표시
 
 ## Phase 6: 고급 기능 ✅
 
 - [x] 병합 뷰 (Merged View) — 모든 Scope 설정 병합 + 출처 표시
 - [x] 검색 기능 (`/` 키로 진입)
 - [x] Linux 경로 지원
-- [ ] 파일 변경 감지 (fsnotify) 및 자동 갱신
+- [x] 파일 변경 감지 (fsnotify) 및 자동 갱신
 
 ## Phase 7: 배포 + 품질 ✅
 
