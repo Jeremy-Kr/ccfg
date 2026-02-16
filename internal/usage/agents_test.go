@@ -26,8 +26,9 @@ func TestCollectAgents_Opencode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if counts["explore"] != 2 {
-		t.Errorf("explore: got %d, want 2", counts["explore"])
+	// explore는 빌트인 인프라 에이전트라 제외됨
+	if counts["explore"] != 0 {
+		t.Errorf("explore: got %d, want 0 (excluded)", counts["explore"])
 	}
 	if counts["librarian"] != 1 {
 		t.Errorf("librarian: got %d, want 1", counts["librarian"])
@@ -58,11 +59,46 @@ func TestCollectAgents_ClaudeCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if counts["explore"] != 1 {
-		t.Errorf("explore: got %d, want 1", counts["explore"])
+	// explore는 빌트인 인프라 에이전트라 제외됨
+	if counts["explore"] != 0 {
+		t.Errorf("explore: got %d, want 0 (excluded)", counts["explore"])
 	}
 	if counts["code-reviewer"] != 1 {
 		t.Errorf("code-reviewer: got %d, want 1", counts["code-reviewer"])
+	}
+}
+
+func TestCollectAgents_GeneralPurposeResolve(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".claude", "projects", "-project-x")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := []string{
+		// 커스텀 에이전트: description에 "이름:" 패턴
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"horner: evaluate code","prompt":"..."}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"horner: review PR","prompt":"..."}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"newey: design spec","prompt":"..."}}]}}`,
+		// 이름 패턴 없음: general-purpose 유지
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"Rules 파일 생성","prompt":"..."}}]}}`,
+		// 공백 포함 접두사: general-purpose 유지
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"Agent #1: do something","prompt":"..."}}]}}`,
+	}
+	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
+
+	counts, err := collectAgents(home, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["horner"] != 2 {
+		t.Errorf("horner: got %d, want 2", counts["horner"])
+	}
+	if counts["newey"] != 1 {
+		t.Errorf("newey: got %d, want 1", counts["newey"])
+	}
+	if counts["general-purpose"] != 2 {
+		t.Errorf("general-purpose: got %d, want 2", counts["general-purpose"])
 	}
 }
 

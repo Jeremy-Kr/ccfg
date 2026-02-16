@@ -36,6 +36,7 @@ type contentBlock struct {
 // agentInput은 task/delegate_task의 tool_input에서 subagent_type을 추출한다.
 type agentInput struct {
 	SubagentType string `json:"subagent_type"`
+	Description  string `json:"description"`
 }
 
 // collectAgents는 transcript에서 에이전트별 호출 횟수를 집계한다.
@@ -55,7 +56,9 @@ func extractAgent(line []byte) (name string, ok bool) {
 			if ol.ToolName == "task" || ol.ToolName == "delegate_task" {
 				var input agentInput
 				if err := json.Unmarshal(ol.ToolInput, &input); err == nil && input.SubagentType != "" {
-					return input.SubagentType, true
+					if resolved := resolveAgentName(input); resolved != "" {
+						return resolved, true
+					}
 				}
 			}
 		}
@@ -69,13 +72,48 @@ func extractAgent(line []byte) (name string, ok bool) {
 			}
 			var input agentInput
 			if err := json.Unmarshal(block.Input, &input); err == nil && input.SubagentType != "" {
-				return input.SubagentType, true
+				if resolved := resolveAgentName(input); resolved != "" {
+					return resolved, true
+				}
 			}
 			return "", false
 		})
 	}
 
 	return "", false
+}
+
+// toolAsAgent는 빌트인 인프라 서브에이전트로, 에이전트 랭킹에서 제외한다.
+// 도구와 이름이 겹치거나 범용적이라 커스텀 에이전트와 구분이 어려운 타입들.
+var toolAsAgent = map[string]bool{
+	"Bash": true, "bash": true,
+	"Explore": true, "explore": true,
+}
+
+// resolveAgentName은 서브에이전트 타입을 의미 있는 이름으로 변환한다.
+// - 도구명과 겹치는 에이전트는 빈 문자열 반환 (제외)
+// - general-purpose의 description에서 커스텀 에이전트 이름 추출
+func resolveAgentName(input agentInput) string {
+	if toolAsAgent[input.SubagentType] {
+		return ""
+	}
+
+	if input.SubagentType != "general-purpose" || input.Description == "" {
+		return input.SubagentType
+	}
+
+	// "horner: coding-guidelines로 평가" → "horner"
+	idx := strings.Index(input.Description, ":")
+	if idx <= 0 || idx > 30 {
+		return input.SubagentType
+	}
+
+	candidate := strings.TrimSpace(input.Description[:idx])
+	// 공백이 포함되면 이름이 아님 ("Agent #1: xxx" 같은 일회성 라벨 제외)
+	if strings.Contains(candidate, " ") {
+		return input.SubagentType
+	}
+	return candidate
 }
 
 // extractFromClaudeCode는 Claude Code 형식의 assistant 메시지에서 tool_use 블록을 순회한다.
