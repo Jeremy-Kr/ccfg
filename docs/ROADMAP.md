@@ -34,27 +34,28 @@
 - [x] 구문 강조 (Chroma monokai 테마) 적용
 - [x] 파싱 에러 시 원본 텍스트 폴백
 
-## Phase 5: 확장 스캔 대상
+## Phase 5: 확장 스캔 대상 ✅
 
-- [ ] `~/.claude/commands/`, `.claude/commands/` — 커스텀 슬래시 명령어
-- [ ] `~/.claude/skills/`, `.claude/skills/` — 설치된 에이전트 스킬
-- [ ] `~/.claude/keybindings.json` — 키바인딩 설정
+- [x] `~/.claude/commands/`, `.claude/commands/` — 커스텀 슬래시 명령어
+- [x] `~/.claude/skills/`, `.claude/skills/` — 설치된 에이전트 스킬
+- [x] `~/.claude/keybindings.json` — 키바인딩 설정
+- [x] 디렉토리 스캔 지원 (파일뿐 아니라 commands/, skills/ 하위 파일 나열)
+- [x] ConfigCategory 확장 (Commands, Skills, Keybindings 추가)
 - [ ] settings.json 내부 `"hooks"` 키 파싱 → 훅 목록 트리 표시
 - [ ] settings.json 내부 `"mcpServers"` 키 파싱 → MCP 서버 목록 표시
-- [ ] 디렉토리 스캔 지원 (파일뿐 아니라 commands/, skills/ 하위 파일 나열)
-- [ ] ConfigCategory 확장 (Commands, Skills, Keybindings 추가)
 
-## Phase 6: 고급 기능
+## Phase 6: 고급 기능 ✅
 
-- [ ] 병합 뷰 (Merged View) — 모든 Scope 설정 병합 + 출처 표시
-- [ ] 검색 기능 (`/` 키로 진입)
-- [ ] Linux 경로 지원
+- [x] 병합 뷰 (Merged View) — 모든 Scope 설정 병합 + 출처 표시
+- [x] 검색 기능 (`/` 키로 진입)
+- [x] Linux 경로 지원
 - [ ] 파일 변경 감지 (fsnotify) 및 자동 갱신
 
-## Phase 7: 배포 + 품질
+## Phase 7: 배포 + 품질 ✅
 
-- [ ] golangci-lint 설정 및 CI
-- [ ] goreleaser 설정 (크로스 컴파일 바이너리)
+- [x] golangci-lint 설정 (`.golangci.yml`)
+- [x] goreleaser 설정 (`.goreleaser.yml`)
+- [x] Makefile (build/test/lint/run/clean)
 - [ ] README.md 작성 (설치 방법, 스크린샷)
 - [ ] Homebrew formula (선택)
 
