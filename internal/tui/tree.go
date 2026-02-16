@@ -48,14 +48,26 @@ func NewTreeModel(result *model.ScanResult) TreeModel {
 }
 
 func makeScopeNode(label string, scope model.Scope, files []model.ConfigFile) TreeNode {
-	children := make([]TreeNode, len(files))
-	for i, f := range files {
+	var children []TreeNode
+	for _, f := range files {
 		f := f
-		children[i] = TreeNode{
+		node := TreeNode{
 			Label: f.Description,
 			Scope: scope,
 			File:  &f,
 		}
+		// 디렉토리는 자식 노드를 가진 펼침 가능 노드로 표시
+		if f.IsDir && len(f.Children) > 0 {
+			for _, child := range f.Children {
+				child := child
+				node.Children = append(node.Children, TreeNode{
+					Label: child.Description,
+					Scope: scope,
+					File:  &child,
+				})
+			}
+		}
+		children = append(children, node)
 	}
 	return TreeNode{
 		Label:    label,
@@ -70,7 +82,13 @@ func (t *TreeModel) visibleNodes() []TreeNode {
 	for _, root := range t.roots {
 		nodes = append(nodes, root)
 		if root.Expanded {
-			nodes = append(nodes, root.Children...)
+			for _, child := range root.Children {
+				nodes = append(nodes, child)
+				// 디렉토리 노드가 펼쳐져 있으면 손자 노드도 표시
+				if child.Expanded && len(child.Children) > 0 {
+					nodes = append(nodes, child.Children...)
+				}
+			}
 		}
 	}
 	return nodes
@@ -102,7 +120,7 @@ func (t *TreeModel) MoveDown() {
 	}
 }
 
-// Toggle은 현재 Scope 노드를 펼치거나 접는다.
+// Toggle은 펼칠 수 있는 노드(Scope 헤더, 디렉토리)를 펼치거나 접는다.
 func (t *TreeModel) Toggle() {
 	visible := t.visibleNodes()
 	if t.cursor < 0 || t.cursor >= len(visible) {
@@ -110,19 +128,36 @@ func (t *TreeModel) Toggle() {
 	}
 	node := visible[t.cursor]
 
-	// Scope 헤더 노드만 토글 가능
-	if node.File != nil {
+	// Scope 헤더 노드 토글
+	if node.File == nil {
+		for i := range t.roots {
+			if t.roots[i].Label == node.Label {
+				t.roots[i].Expanded = !t.roots[i].Expanded
+				if !t.roots[i].Expanded {
+					t.clampCursor()
+				}
+				return
+			}
+		}
 		return
 	}
 
-	for i := range t.roots {
-		if t.roots[i].Label == node.Label {
-			t.roots[i].Expanded = !t.roots[i].Expanded
-			// 접을 때 커서가 자식에 있었으면 부모로 이동
+	// 디렉토리 파일 노드 토글 (Children이 있는 경우)
+	if node.File.IsDir && len(node.Children) > 0 {
+		for i := range t.roots {
 			if !t.roots[i].Expanded {
-				t.clampCursor()
+				continue
 			}
-			break
+			for j := range t.roots[i].Children {
+				if t.roots[i].Children[j].File != nil &&
+					t.roots[i].Children[j].File.Path == node.File.Path {
+					t.roots[i].Children[j].Expanded = !t.roots[i].Children[j].Expanded
+					if !t.roots[i].Children[j].Expanded {
+						t.clampCursor()
+					}
+					return
+				}
+			}
 		}
 	}
 }
@@ -211,14 +246,47 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 		return scopeHeaderStyle.Render(text)
 	}
 
+	// 디렉토리 노드 (펼침 가능)
+	if node.File.IsDir && len(node.Children) > 0 {
+		arrow := "▸"
+		if node.Expanded {
+			arrow = "▾"
+		}
+		count := fmt.Sprintf("(%d)", len(node.Children))
+		text := fmt.Sprintf("  %s %s %s", arrow, node.Label, count)
+		if selected && focused {
+			return treeSelectedStyle.Render(text)
+		}
+		if node.File.Exists {
+			return fileExistsStyle.Render(text)
+		}
+		return fileMissingStyle.Render(text)
+	}
+
+	// 손자 노드 (디렉토리 내 파일) — 더 깊은 들여쓰기
+	indent := "  "
+	// 부모가 디렉토리인지 확인 (간접적으로 depth 판별)
+	if node.File != nil && node.File.Exists {
+		// 손자 노드인지 판별: 파일의 부모 디렉토리가 commands/ 또는 skills/인지
+		for _, root := range t.roots {
+			for _, child := range root.Children {
+				for _, grandchild := range child.Children {
+					if grandchild.File != nil && grandchild.File.Path == node.File.Path {
+						indent = "    "
+					}
+				}
+			}
+		}
+	}
+
 	// 파일 노드
 	status := fileMissingStyle.Render("✗")
 	if node.File.Exists {
 		status = fileExistsStyle.Render("✓")
 	}
-	text := fmt.Sprintf("  %s %s", status, node.Label)
+	text := fmt.Sprintf("%s%s %s", indent, status, node.Label)
 	if selected && focused {
-		return treeSelectedStyle.Render(fmt.Sprintf("  %s %s", "›", node.Label))
+		return treeSelectedStyle.Render(fmt.Sprintf("%s%s %s", indent, "›", node.Label))
 	}
 	return treeItemStyle.Render(text)
 }
