@@ -11,6 +11,11 @@ builds:
     goarch:
       - amd64
       - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
 
 archives:
   - format: tar.gz
@@ -26,3 +31,17 @@ changelog:
       - "^docs:"
       - "^chore:"
       - "^style:"
+
+brews:
+  - repository:
+      owner: jeremy-kr
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/jeremy-kr/ccfg
+    description: TUI dashboard for viewing Claude Code config files
+    license: MIT
+    test: |
+      system "#{bin}/ccfg", "--version"
+    install: |
+      bin.install "ccfg"
