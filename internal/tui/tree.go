@@ -52,29 +52,29 @@ func makeScopeNode(label string, scope model.Scope, files []model.ConfigFile) Tr
 	var children []TreeNode
 	for _, f := range files {
 		f := f
-		node := TreeNode{
-			Label: f.Description,
-			Scope: scope,
-			File:  &f,
-		}
-		// 디렉토리는 자식 노드를 가진 펼침 가능 노드로 표시
-		if f.IsDir && len(f.Children) > 0 {
-			for _, child := range f.Children {
-				child := child
-				node.Children = append(node.Children, TreeNode{
-					Label: child.Description,
-					Scope: scope,
-					File:  &child,
-				})
-			}
-		}
-		children = append(children, node)
+		children = append(children, makeFileNode(f, scope))
 	}
 	return TreeNode{
 		Label:    label,
 		Scope:    scope,
 		Children: children,
 	}
+}
+
+// makeFileNode은 ConfigFile로부터 TreeNode를 재귀적으로 생성한다.
+func makeFileNode(f model.ConfigFile, scope model.Scope) TreeNode {
+	node := TreeNode{
+		Label: f.Description,
+		Scope: scope,
+		File:  &f,
+	}
+	if f.IsDir && len(f.Children) > 0 {
+		for _, child := range f.Children {
+			child := child
+			node.Children = append(node.Children, makeFileNode(child, scope))
+		}
+	}
+	return node
 }
 
 // visibleNodes는 현재 펼쳐진 노드들을 플랫 리스트로 반환한다.
@@ -99,16 +99,23 @@ func (t *TreeModel) visibleNodes() []TreeNode {
 		} else {
 			nodes = append(nodes, root)
 			if root.Expanded {
-				for _, child := range root.Children {
-					nodes = append(nodes, child)
-					if child.Expanded && len(child.Children) > 0 {
-						nodes = append(nodes, child.Children...)
-					}
-				}
+				nodes = append(nodes, flattenExpanded(root.Children)...)
 			}
 		}
 	}
 	return nodes
+}
+
+// flattenExpanded는 펼쳐진 노드를 재귀적으로 플랫 리스트로 변환한다.
+func flattenExpanded(nodes []TreeNode) []TreeNode {
+	var flat []TreeNode
+	for _, node := range nodes {
+		flat = append(flat, node)
+		if node.Expanded && len(node.Children) > 0 {
+			flat = append(flat, flattenExpanded(node.Children)...)
+		}
+	}
+	return flat
 }
 
 // Filter는 트리를 검색어로 필터링한다.
@@ -173,22 +180,23 @@ func (t *TreeModel) Toggle() {
 
 	// 디렉토리 파일 노드 토글 (Children이 있는 경우)
 	if node.File.IsDir && len(node.Children) > 0 {
-		for i := range t.roots {
-			if !t.roots[i].Expanded {
-				continue
-			}
-			for j := range t.roots[i].Children {
-				if t.roots[i].Children[j].File != nil &&
-					t.roots[i].Children[j].File.Path == node.File.Path {
-					t.roots[i].Children[j].Expanded = !t.roots[i].Children[j].Expanded
-					if !t.roots[i].Children[j].Expanded {
-						t.clampCursor()
-					}
-					return
-				}
-			}
+		toggleByPath(t.roots, node.File.Path)
+		t.clampCursor()
+	}
+}
+
+// toggleByPath는 트리에서 경로가 일치하는 노드의 Expanded를 토글한다.
+func toggleByPath(nodes []TreeNode, path string) bool {
+	for i := range nodes {
+		if nodes[i].File != nil && nodes[i].File.Path == path {
+			nodes[i].Expanded = !nodes[i].Expanded
+			return true
+		}
+		if toggleByPath(nodes[i].Children, path) {
+			return true
 		}
 	}
+	return false
 }
 
 func (t *TreeModel) clampCursor() {
@@ -275,6 +283,9 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 		return scopeHeaderStyle.Render(text)
 	}
 
+	depth := nodeDepth(t.roots, node.File)
+	indent := strings.Repeat("  ", depth)
+
 	// 디렉토리 노드 (펼침 가능)
 	if node.File.IsDir && len(node.Children) > 0 {
 		arrow := "▸"
@@ -282,7 +293,7 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 			arrow = "▾"
 		}
 		count := fmt.Sprintf("(%d)", len(node.Children))
-		text := fmt.Sprintf("  %s %s %s", arrow, node.Label, count)
+		text := fmt.Sprintf("%s%s %s %s", indent, arrow, node.Label, count)
 		if selected && focused {
 			return treeSelectedStyle.Render(text)
 		}
@@ -290,22 +301,6 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 			return fileExistsStyle.Render(text)
 		}
 		return fileMissingStyle.Render(text)
-	}
-
-	// 손자 노드 (디렉토리 내 파일) — 더 깊은 들여쓰기
-	indent := "  "
-	// 부모가 디렉토리인지 확인 (간접적으로 depth 판별)
-	if node.File != nil && node.File.Exists {
-		// 손자 노드인지 판별: 파일의 부모 디렉토리가 commands/ 또는 skills/인지
-		for _, root := range t.roots {
-			for _, child := range root.Children {
-				for _, grandchild := range child.Children {
-					if grandchild.File != nil && grandchild.File.Path == node.File.Path {
-						indent = "    "
-					}
-				}
-			}
-		}
 	}
 
 	// 파일 노드
@@ -318,4 +313,29 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 		return treeSelectedStyle.Render(fmt.Sprintf("%s%s %s", indent, "›", node.Label))
 	}
 	return treeItemStyle.Render(text)
+}
+
+// nodeDepth는 트리에서 해당 파일 노드의 깊이를 반환한다.
+func nodeDepth(roots []TreeNode, target *model.ConfigFile) int {
+	if target == nil {
+		return 0
+	}
+	for _, root := range roots {
+		if d := findDepth(root.Children, target.Path, 1); d > 0 {
+			return d
+		}
+	}
+	return 1
+}
+
+func findDepth(nodes []TreeNode, path string, depth int) int {
+	for _, node := range nodes {
+		if node.File != nil && node.File.Path == path {
+			return depth
+		}
+		if d := findDepth(node.Children, path, depth+1); d > 0 {
+			return d
+		}
+	}
+	return 0
 }

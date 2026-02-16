@@ -106,7 +106,7 @@ func scanDir(dir string, scope model.Scope, category model.ConfigCategory) []mod
 			continue
 		}
 
-		children = append(children, model.ConfigFile{
+		cf := model.ConfigFile{
 			Path:        absPath,
 			Scope:       scope,
 			FileType:    detectFileType(entry.Name()),
@@ -116,7 +116,14 @@ func scanDir(dir string, scope model.Scope, category model.ConfigCategory) []mod
 			Size:        info.Size(),
 			ModTime:     info.ModTime(),
 			Description: entry.Name(),
-		})
+		}
+
+		// 하위 디렉토리 재귀 스캔
+		if info.IsDir() {
+			cf.Children = scanDir(absPath, scope, category)
+		}
+
+		children = append(children, cf)
 	}
 	return children
 }
