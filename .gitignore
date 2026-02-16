@@ -21,6 +21,3 @@ Thumbs.db
 
 # MCP server metadata
 .serena/
-
-# Temporary debugging tools
-cmd/verify/
