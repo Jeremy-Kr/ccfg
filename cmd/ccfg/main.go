@@ -10,7 +10,22 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/tui"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		short := commit
+		if len(short) > 7 {
+			short = short[:7]
+		}
+		fmt.Printf("ccfg %s (%s, %s)\n", version, short, date)
+		return
+	}
+
 	s := scanner.New("")
 
 	start := time.Now()
