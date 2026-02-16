@@ -159,9 +159,11 @@ func (r *RankingModel) View(width, height int) string {
 
 	scrollBars := renderScrollbar(len(entries), visibleRows, r.offset)
 
+	contentW := width
 	barWidth := width - 35 // 번호(4) + 등급(6) + 이름(15) + 카운트(6) + 여백(4)
 	if scrollBars != nil {
-		barWidth -= 2 // 스크롤바 + 공백
+		contentW = width - 1
+		barWidth--
 	}
 	if barWidth < 5 {
 		barWidth = 5
@@ -173,7 +175,10 @@ func (r *RankingModel) View(width, height int) string {
 
 		line := r.renderEntry(i+1, entry, barWidth, selected)
 		if scrollBars != nil {
-			line += " " + scrollBars[i-r.offset]
+			if gap := contentW - lipgloss.Width(line); gap > 0 {
+				line += strings.Repeat(" ", gap)
+			}
+			line += scrollBars[i-r.offset]
 		}
 		b.WriteString(line)
 		if i < end-1 {

@@ -165,14 +165,25 @@ func (p *PreviewModel) View(width int, focused bool) string {
 
 		scrollBars := renderScrollbar(len(p.lines), visibleRows, p.offset)
 
-		for i := p.offset; i < end; i++ {
-			line := p.lines[i]
-			if scrollBars != nil {
-				line += " " + scrollBars[i-p.offset]
+		if scrollBars != nil {
+			contentW := availW - 1
+			for i := p.offset; i < end; i++ {
+				line := lipgloss.NewStyle().MaxWidth(contentW).Render(p.lines[i])
+				if gap := contentW - lipgloss.Width(line); gap > 0 {
+					line += strings.Repeat(" ", gap)
+				}
+				line += scrollBars[i-p.offset]
+				b.WriteString(line)
+				if i < end-1 {
+					b.WriteString("\n")
+				}
 			}
-			b.WriteString(line)
-			if i < end-1 {
-				b.WriteString("\n")
+		} else {
+			for i := p.offset; i < end; i++ {
+				b.WriteString(p.lines[i])
+				if i < end-1 {
+					b.WriteString("\n")
+				}
 			}
 		}
 	}

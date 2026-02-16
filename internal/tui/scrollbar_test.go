@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/jeremy-kr/ccfg/internal/model"
 )
 
 func TestRenderScrollbar_NoScrollNeeded(t *testing.T) {
@@ -64,6 +66,40 @@ func TestRenderScrollbar_ThumbAtBottom(t *testing.T) {
 	thumbCount := countThumb(bars)
 	if thumbCount < 1 {
 		t.Error("expected at least 1 thumb char at bottom")
+	}
+}
+
+func TestPreviewView_ScrollbarInOutput(t *testing.T) {
+	p := &PreviewModel{height: 12, offset: 0}
+	lines := make([]string, 50)
+	for i := range lines {
+		lines[i] = "test content"
+	}
+	p.lines = lines
+	p.file = &model.ConfigFile{Path: "/test.txt", Exists: true, Size: 100}
+
+	output := p.View(80, false)
+	if !strings.Contains(output, "┃") && !strings.Contains(output, "│") {
+		t.Error("scrollbar chars (┃ or │) not found in preview output")
+	}
+}
+
+func TestTreeView_ScrollbarInOutput(t *testing.T) {
+	// visibleNodes가 height보다 많으면 스크롤바 표시
+	roots := []TreeNode{
+		{Label: "Test", Scope: model.ScopeUser, Expanded: true},
+	}
+	for i := 0; i < 30; i++ {
+		roots[0].Children = append(roots[0].Children, TreeNode{
+			Label: "item",
+			Scope: model.ScopeUser,
+			File:  &model.ConfigFile{Path: "/test", Description: "item"},
+		})
+	}
+	tm := TreeModel{roots: roots, height: 10}
+	output := tm.View(40, false)
+	if !strings.Contains(output, "┃") && !strings.Contains(output, "│") {
+		t.Error("scrollbar chars not found in tree output")
 	}
 }
 

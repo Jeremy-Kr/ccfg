@@ -328,7 +328,8 @@ func (m Model) updateRanking(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) renderRankingView() string {
 	header := m.renderHeader()
 	contentH := m.contentHeight()
-	rankingContent := m.ranking.View(m.width-4, contentH)
+	panelFrameW := panelFocusedStyle.GetHorizontalFrameSize()
+	rankingContent := m.ranking.View(m.width-2-panelFrameW, contentH)
 
 	// 랭킹 HUD
 	footer := footerStyle.Render(renderRankingHUD())

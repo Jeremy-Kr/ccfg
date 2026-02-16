@@ -268,13 +268,24 @@ func (t *TreeModel) View(width int, focused bool) string {
 		end = len(visible)
 	}
 
+	style := panelStyleFor(focused).Width(width).Height(t.height)
+	availWidth := width - style.GetHorizontalFrameSize()
+
 	scrollBars := renderScrollbar(len(visible), t.height, t.offset)
+	contentW := availWidth
+	if scrollBars != nil {
+		contentW = availWidth - 1
+	}
 
 	for i := t.offset; i < end; i++ {
 		node := visible[i]
 		line := t.renderNode(node, i == t.cursor, focused)
 		if scrollBars != nil {
-			line += " " + scrollBars[i-t.offset]
+			line = lipgloss.NewStyle().MaxWidth(contentW).Render(line)
+			if gap := contentW - lipgloss.Width(line); gap > 0 {
+				line += strings.Repeat(" ", gap)
+			}
+			line += scrollBars[i-t.offset]
 		}
 		b.WriteString(line)
 		if i < end-1 {
@@ -290,10 +301,7 @@ func (t *TreeModel) View(width int, focused bool) string {
 		}
 	}
 
-	style := panelStyleFor(focused).Width(width).Height(t.height)
-	availWidth := width - style.GetHorizontalFrameSize()
 	content := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
-
 	return style.Render(content)
 }
 
