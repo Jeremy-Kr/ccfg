@@ -72,11 +72,48 @@ func scanEntries(base string, entries []FileEntry, scope model.Scope) []model.Co
 			cf.Exists = true
 			cf.Size = info.Size()
 			cf.ModTime = info.ModTime()
+			cf.IsDir = info.IsDir()
+
+			// 디렉토리면 하위 파일을 스캔
+			if e.IsDir && info.IsDir() {
+				cf.Children = scanDir(absPath, scope, e.Category)
+			}
 		}
 
 		files = append(files, cf)
 	}
 	return files
+}
+
+// scanDir은 디렉토리 내의 파일들을 스캔한다.
+func scanDir(dir string, scope model.Scope, category model.ConfigCategory) []model.ConfigFile {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	var children []model.ConfigFile
+	for _, entry := range entries {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		absPath := filepath.Join(dir, entry.Name())
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		children = append(children, model.ConfigFile{
+			Path:        absPath,
+			Scope:       scope,
+			FileType:    detectFileType(entry.Name()),
+			Category:    category,
+			Exists:      true,
+			Size:        info.Size(),
+			ModTime:     info.ModTime(),
+			Description: entry.Name(),
+		})
+	}
+	return children
 }
 
 // detectFileType은 파일 경로의 확장자로 FileType을 판별한다.
