@@ -42,6 +42,13 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 		return
 	}
 
+	// 디렉토리인 경우 내용 목록 표시
+	if file.IsDir {
+		p.content = p.renderDir(file)
+		p.lines = strings.Split(p.content, "\n")
+		return
+	}
+
 	data, err := os.ReadFile(file.Path)
 	if err != nil {
 		p.content = fmt.Sprintf("(읽기 실패: %v)", err)
@@ -59,6 +66,40 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 		p.content = raw
 	}
 	p.lines = strings.Split(p.content, "\n")
+}
+
+func (p *PreviewModel) renderDir(file *model.ConfigFile) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("디렉토리: %s\n\n", file.Path))
+
+	if len(file.Children) == 0 {
+		entries, err := os.ReadDir(file.Path)
+		if err != nil {
+			b.WriteString(fmt.Sprintf("(읽기 실패: %v)", err))
+			return b.String()
+		}
+		for _, entry := range entries {
+			icon := "  📄 "
+			if entry.IsDir() {
+				icon = "  📁 "
+			}
+			b.WriteString(fmt.Sprintf("%s%s\n", icon, entry.Name()))
+		}
+	} else {
+		for _, child := range file.Children {
+			icon := "  📄 "
+			if child.IsDir {
+				icon = "  📁 "
+			}
+			detail := ""
+			if child.Exists {
+				detail = fmt.Sprintf("  (%d bytes)", child.Size)
+			}
+			b.WriteString(fmt.Sprintf("%s%s%s\n", icon, child.Description, detail))
+		}
+	}
+
+	return b.String()
 }
 
 // ScrollUp은 미리보기를 위로 스크롤한다.

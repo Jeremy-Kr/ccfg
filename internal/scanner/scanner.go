@@ -86,6 +86,7 @@ func scanEntries(base string, entries []FileEntry, scope model.Scope) []model.Co
 }
 
 // scanDir은 디렉토리 내의 파일들을 스캔한다.
+// 심볼릭 링크가 디렉토리를 가리키는 경우도 포함한다.
 func scanDir(dir string, scope model.Scope, category model.ConfigCategory) []model.ConfigFile {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -94,20 +95,24 @@ func scanDir(dir string, scope model.Scope, category model.ConfigCategory) []mod
 
 	var children []model.ConfigFile
 	for _, entry := range entries {
-		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
 		absPath := filepath.Join(dir, entry.Name())
-		info, err := entry.Info()
+
+		// 심볼릭 링크 해석
+		info, err := os.Stat(absPath)
 		if err != nil {
 			continue
 		}
+
 		children = append(children, model.ConfigFile{
 			Path:        absPath,
 			Scope:       scope,
 			FileType:    detectFileType(entry.Name()),
 			Category:    category,
 			Exists:      true,
+			IsDir:       info.IsDir(),
 			Size:        info.Size(),
 			ModTime:     info.ModTime(),
 			Description: entry.Name(),
