@@ -9,23 +9,23 @@
 - [x] 경로 상수 정의 (`internal/scanner/paths.go`)
 - [x] git 초기화 + .gitignore
 
-## Phase 2: 스캐너 구현
+## Phase 2: 스캐너 구현 ✅
 
-- [ ] `internal/model/types.go` — 공유 타입 정의 (Scope, FileType, ConfigFile, ScanResult)
-- [ ] `internal/scanner/scanner.go` — Scanner 인터페이스 및 DefaultScanner 구현
-- [ ] `internal/scanner/root.go` — 프로젝트 루트 감지 (.git 탐색)
-- [ ] `internal/scanner/scanner_test.go` — 테스트 (임시 디렉토리 기반)
-- [ ] Bubbletea, Lipgloss 등 의존성 추가
+- [x] `internal/model/types.go` — 공유 타입 정의 (Scope, FileType, ConfigFile, ScanResult)
+- [x] `internal/scanner/scanner.go` — DefaultScanner 구현
+- [x] `internal/scanner/root.go` — 프로젝트 루트 감지 (.git 탐색)
+- [x] `internal/scanner/scanner_test.go` — 테스트 (임시 디렉토리 기반)
+- [x] Bubbletea, Lipgloss 등 의존성 추가
 
-## Phase 3: 기본 TUI
+## Phase 3: 기본 TUI ✅
 
-- [ ] `internal/tui/model.go` — 메인 TUI 모델 (Init, Update, View)
-- [ ] `internal/tui/tree.go` — 트리 뷰 컴포넌트
-- [ ] `internal/tui/preview.go` — 미리보기 패널 (raw text)
-- [ ] `internal/tui/keys.go` — 키 바인딩 정의
-- [ ] `internal/tui/styles.go` — Lipgloss 스타일 정의
-- [ ] 30/70 split 레이아웃
-- [ ] 키보드 네비게이션 (j/k/Enter/Tab/q)
+- [x] `internal/tui/model.go` — 메인 TUI 모델 (Init, Update, View)
+- [x] `internal/tui/tree.go` — 트리 뷰 컴포넌트
+- [x] `internal/tui/preview.go` — 미리보기 패널 (raw text)
+- [x] `internal/tui/keys.go` — 키 바인딩 정의
+- [x] `internal/tui/styles.go` — Lipgloss 스타일 정의
+- [x] 30/70 split 레이아웃
+- [x] 키보드 네비게이션 (j/k/Enter/Tab/q)
 
 ## Phase 4: 파서 + 구문 강조
 
@@ -47,3 +47,11 @@
 - [ ] goreleaser 설정 (크로스 컴파일 바이너리)
 - [ ] README.md 작성 (설치 방법, 스크린샷)
 - [ ] Homebrew formula (선택)
+
+## Phase 7: 게임 스타일 테마
+
+- [ ] 컬러풀한 테두리 (Scope별 고유 색상)
+- [ ] 이모지 아이콘 (Scope, 파일 상태, 카테고리)
+- [ ] 섹션 타이틀 스타일 (테두리 위 라벨)
+- [ ] 하단 키 힌트 바 (게임 HUD 스타일)
+- [ ] 전체 컬러 팔레트 리디자인 (다크 배경 + 네온 액센트)
