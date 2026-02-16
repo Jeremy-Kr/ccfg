@@ -23,6 +23,7 @@ type TreeModel struct {
 	cursor int        // 현재 선택된 visible 인덱스
 	offset int        // 스크롤 오프셋
 	height int        // 표시 가능한 행 수
+	filter string     // 검색 필터 (빈 문자열이면 필터 없음)
 }
 
 // NewTreeModel은 ScanResult로부터 트리를 구성한다.
@@ -79,19 +80,47 @@ func makeScopeNode(label string, scope model.Scope, files []model.ConfigFile) Tr
 // visibleNodes는 현재 펼쳐진 노드들을 플랫 리스트로 반환한다.
 func (t *TreeModel) visibleNodes() []TreeNode {
 	var nodes []TreeNode
+	filter := strings.ToLower(t.filter)
+
 	for _, root := range t.roots {
-		nodes = append(nodes, root)
-		if root.Expanded {
+		if filter != "" {
+			// 필터 모드: 매칭되는 자식이 있는 Scope만 표시
+			var matched []TreeNode
 			for _, child := range root.Children {
-				nodes = append(nodes, child)
-				// 디렉토리 노드가 펼쳐져 있으면 손자 노드도 표시
-				if child.Expanded && len(child.Children) > 0 {
-					nodes = append(nodes, child.Children...)
+				if strings.Contains(strings.ToLower(child.Label), filter) ||
+					(child.File != nil && strings.Contains(strings.ToLower(child.File.Path), filter)) {
+					matched = append(matched, child)
+				}
+			}
+			if len(matched) > 0 {
+				nodes = append(nodes, root)
+				nodes = append(nodes, matched...)
+			}
+		} else {
+			nodes = append(nodes, root)
+			if root.Expanded {
+				for _, child := range root.Children {
+					nodes = append(nodes, child)
+					if child.Expanded && len(child.Children) > 0 {
+						nodes = append(nodes, child.Children...)
+					}
 				}
 			}
 		}
 	}
 	return nodes
+}
+
+// Filter는 트리를 검색어로 필터링한다.
+func (t *TreeModel) Filter(text string) {
+	t.filter = text
+	t.cursor = 0
+	t.offset = 0
+}
+
+// ClearFilter는 필터를 해제한다.
+func (t *TreeModel) ClearFilter() {
+	t.filter = ""
 }
 
 // SelectedFile은 현재 커서가 가리키는 파일을 반환한다. Scope 노드면 nil.

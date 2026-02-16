@@ -2,10 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jeremy-kr/ccfg/internal/merger"
 	"github.com/jeremy-kr/ccfg/internal/model"
 )
 
@@ -21,24 +23,28 @@ const version = "0.1.0"
 
 // Model은 TUI 전체 상태를 관리한다.
 type Model struct {
-	scan    *model.ScanResult
-	tree    TreeModel
-	preview PreviewModel
-	focus   Pane
-	width   int
-	height  int
-	ready   bool
+	scan       *model.ScanResult
+	tree       TreeModel
+	preview    PreviewModel
+	focus      Pane
+	width      int
+	height     int
+	ready      bool
+	searchMode bool
+	searchText string
+	mergeMode  bool
+	merged     *merger.MergedConfig
 }
 
 // NewModel은 ScanResult로부터 TUI 모델을 생성한다.
 func NewModel(result *model.ScanResult) Model {
 	tree := NewTreeModel(result)
 	m := Model{
-		scan:  result,
-		tree:  tree,
-		focus: PaneTree,
+		scan:   result,
+		tree:   tree,
+		focus:  PaneTree,
+		merged: merger.Merge(result),
 	}
-	// 초기 파일 선택 반영
 	if f := tree.SelectedFile(); f != nil {
 		m.preview.SetFile(f)
 	}
@@ -59,9 +65,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// 검색 모드
+		if m.searchMode {
+			return m.updateSearch(msg)
+		}
+
 		switch {
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
+
+		case key.Matches(msg, keys.Search):
+			m.searchMode = true
+			m.searchText = ""
+			return m, nil
+
+		case key.Matches(msg, keys.Merge):
+			m.mergeMode = !m.mergeMode
+			return m, nil
 
 		case key.Matches(msg, keys.Tab):
 			m.toggleFocus()
@@ -117,16 +137,51 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEscape:
+		m.searchMode = false
+		m.searchText = ""
+		m.tree.ClearFilter()
+		return m, nil
+	case tea.KeyEnter:
+		m.searchMode = false
+		// 필터 유지
+		return m, nil
+	case tea.KeyBackspace:
+		if len(m.searchText) > 0 {
+			m.searchText = m.searchText[:len(m.searchText)-1]
+		}
+		m.tree.Filter(m.searchText)
+		return m, nil
+	default:
+		if msg.Type == tea.KeyRunes {
+			m.searchText += string(msg.Runes)
+			m.tree.Filter(m.searchText)
+		}
+		return m, nil
+	}
+}
+
 func (m Model) View() string {
 	if !m.ready {
 		return "로딩 중..."
 	}
 
 	// 헤더
-	header := headerStyle.Render(fmt.Sprintf("ccfg v%s — Claude Code Config Viewer", version))
+	title := fmt.Sprintf("ccfg v%s — Claude Code Config Viewer", version)
+	if m.mergeMode {
+		title += "  [MERGED]"
+	}
+	header := headerStyle.Render(title)
 
 	// 풋터
-	footer := footerStyle.Render(keys.helpLine())
+	var footer string
+	if m.searchMode {
+		footer = footerStyle.Render(fmt.Sprintf("🔍 /%s█  (Enter: 확인, Esc: 취소)", m.searchText))
+	} else {
+		footer = footerStyle.Render(keys.helpLine())
+	}
 
 	// 메인 영역 치수
 	contentH := m.contentHeight()
@@ -137,12 +192,40 @@ func (m Model) View() string {
 	m.tree.SetHeight(contentH)
 	m.preview.SetHeight(contentH)
 	treeView := m.tree.View(treeW, m.focus == PaneTree)
-	previewView := m.preview.View(previewW, m.focus == PanePreview)
 
-	// 좌우 배치
+	var previewView string
+	if m.mergeMode {
+		previewView = m.renderMergeView(previewW, contentH)
+	} else {
+		previewView = m.preview.View(previewW, m.focus == PanePreview)
+	}
+
 	main := lipgloss.JoinHorizontal(lipgloss.Top, treeView, previewView)
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, main, footer)
+}
+
+func (m *Model) renderMergeView(width, height int) string {
+	content := m.merged.Render()
+	lines := strings.Split(content, "\n")
+
+	var b strings.Builder
+	end := height
+	if end > len(lines) {
+		end = len(lines)
+	}
+	for i := 0; i < end; i++ {
+		b.WriteString(lines[i])
+		if i < end-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	style := panelStyle.Width(width)
+	if m.focus == PanePreview {
+		style = panelFocusedStyle.Width(width)
+	}
+	return style.Render(b.String())
 }
 
 func (m *Model) toggleFocus() {
@@ -163,9 +246,7 @@ func (m *Model) updateLayout() {
 	m.preview.SetHeight(h)
 }
 
-// contentHeight는 헤더/풋터를 제외한 메인 영역 높이.
 func (m *Model) contentHeight() int {
-	// 헤더 1줄 + 풋터 1줄 + 패널 테두리 위아래 2줄
 	h := m.height - 4
 	if h < 3 {
 		h = 3
@@ -173,7 +254,6 @@ func (m *Model) contentHeight() int {
 	return h
 }
 
-// treeWidth는 좌측 패널 너비 (30%).
 func (m *Model) treeWidth() int {
 	w := m.width * 30 / 100
 	if w < 20 {
@@ -182,7 +262,6 @@ func (m *Model) treeWidth() int {
 	return w
 }
 
-// previewWidth는 우측 패널 너비 (나머지).
 func (m *Model) previewWidth() int {
 	return m.width - m.treeWidth()
 }

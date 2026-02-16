@@ -11,6 +11,8 @@ type keyMap struct {
 	Right    key.Binding
 	PageUp   key.Binding
 	PageDown key.Binding
+	Search   key.Binding
+	Merge    key.Binding
 	Quit     key.Binding
 }
 
@@ -47,6 +49,14 @@ var keys = keyMap{
 		key.WithKeys("pgdown", "ctrl+d"),
 		key.WithHelp("pgdn", "페이지 아래"),
 	),
+	Search: key.NewBinding(
+		key.WithKeys("/"),
+		key.WithHelp("/", "검색"),
+	),
+	Merge: key.NewBinding(
+		key.WithKeys("m"),
+		key.WithHelp("m", "병합 뷰"),
+	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "종료"),
@@ -54,5 +64,5 @@ var keys = keyMap{
 }
 
 func (k keyMap) helpLine() string {
-	return "↑↓/jk: 이동  enter: 펼치기  tab/hl: 패널 전환  pgup/pgdn: 스크롤  q: 종료"
+	return "jk: 이동  enter: 펼치기  tab/hl: 패널  /: 검색  m: 병합  q: 종료"
 }
