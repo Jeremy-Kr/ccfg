@@ -57,12 +57,14 @@
 - [x] goreleaser 설정 (`.goreleaser.yml`)
 - [x] Makefile (build/test/lint/run/clean)
 - [ ] README.md 작성 (설치 방법, 스크린샷)
-- [ ] Homebrew formula (선택)
+- [x] Homebrew formula
+- [x] GitHub Actions 릴리스 자동화
+- [x] MIT 라이선스
 
 ## Phase 8: 게임 스타일 테마
 
-- [ ] 컬러풀한 테두리 (Scope별 고유 색상)
-- [ ] 이모지 아이콘 (Scope, 파일 상태, 카테고리)
-- [ ] 섹션 타이틀 스타일 (테두리 위 라벨)
-- [ ] 하단 키 힌트 바 (게임 HUD 스타일)
-- [ ] 전체 컬러 팔레트 리디자인 (다크 배경 + 네온 액센트)
+- [x] 컬러풀한 테두리 (Scope별 고유 색상)
+- [x] 이모지 아이콘 (Scope, 파일 상태, 카테고리)
+- [x] 섹션 타이틀 스타일 (테두리 위 라벨)
+- [x] 하단 키 힌트 바 (게임 HUD 스타일)
+- [x] 전체 컬러 팔레트 리디자인 (다크 배경 + 네온 액센트)
