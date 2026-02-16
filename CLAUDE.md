@@ -1,56 +1,56 @@
 # ccfg — Claude Code Config Viewer
 
-Go + Bubbletea 기반 TUI 대시보드. Claude Code의 분산된 설정 파일들을 한 화면에서 조회.
+A TUI dashboard built with Go + Bubbletea. View all of Claude Code's scattered config files in a single screen.
 
-## 기술 스택
+## Tech Stack
 
-- **언어:** Go 1.26
+- **Language:** Go 1.26
 - **TUI:** Bubbletea v1.3.x + Lipgloss + Bubbles
-- **구문 강조:** Glamour + Chroma
-- **CLI:** 표준 `flag` 패키지 (별도 프레임워크 없음)
+- **Syntax Highlighting:** Glamour + Chroma
+- **CLI:** Standard `flag` package (no external framework)
 
-## 빌드 / 테스트 / 린트
+## Build / Test / Lint
 
 ```bash
-# 빌드
+# Build
 go build -o ccfg ./cmd/ccfg
 
-# 전체 테스트
+# Run all tests
 go test ./...
 
-# 특정 패키지 테스트
+# Test a specific package
 go test ./internal/scanner/...
 
-# 린트 (golangci-lint 설치 필요)
+# Lint (requires golangci-lint)
 golangci-lint run
 
-# 실행
+# Run
 ./ccfg
 ```
 
-## 디렉토리 구조
+## Directory Structure
 
 ```
-cmd/ccfg/          엔트리포인트
+cmd/ccfg/          Entry point
 internal/
-  scanner/         설정 파일 탐색 (경로, 스캔 로직)
-  parser/          설정 파일 파싱 (JSON, JSONC, Markdown)
-  model/           공유 타입 정의
-  tui/             Bubbletea 모델, 뷰, 컴포넌트
-docs/              PRD, 기술 설계, 로드맵
+  scanner/         Config file discovery (paths, scan logic)
+  parser/          Config file parsing (JSON, JSONC, Markdown)
+  model/           Shared type definitions
+  tui/             Bubbletea model, view, components
+docs/              PRD, technical design, roadmap
 ```
 
-## 코딩 컨벤션
+## Coding Conventions
 
-- Go 표준 스타일 (`gofmt`)
-- `internal/` 패키지로 캡슐화
-- 에러는 `fmt.Errorf("context: %w", err)` 패턴으로 래핑
-- 인터페이스는 사용하는 쪽에서 정의
-- 테스트 파일은 `*_test.go`로 같은 패키지에 위치
-- 변수/함수명은 Go 네이밍 컨벤션 준수 (camelCase, exported는 PascalCase)
+- Go standard style (`gofmt`)
+- Encapsulation via `internal/` packages
+- Errors wrapped with `fmt.Errorf("context: %w", err)` pattern
+- Interfaces defined at the call site
+- Test files use `*_test.go` in the same package
+- Naming follows Go conventions (camelCase for unexported, PascalCase for exported)
 
-## 핵심 제약
+## Key Constraints
 
-- 읽기 전용 도구: 설정 파일을 절대 수정하지 않음
-- macOS 우선 지원 (Linux는 Phase 5에서)
-- 최소 의존성: 필요한 라이브러리만 추가
+- Read-only tool: never modifies config files
+- macOS first (Linux support added in Phase 5)
+- Minimal dependencies: only add libraries when necessary

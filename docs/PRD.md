@@ -1,78 +1,78 @@
 # ccfg — Product Requirements Document
 
-## 제품 개요
+## Product Overview
 
-**ccfg**는 Claude Code의 분산된 설정 파일들을 단일 TUI 대시보드에서 조회하는 읽기 전용 도구다.
+**ccfg** is a read-only tool that displays Claude Code's scattered config files in a single TUI dashboard.
 
-Claude Code는 설정이 8개 이상의 파일/디렉토리에 분산되어 있다:
-- 시스템 관리자가 관리하는 managed 설정
-- 사용자 홈 디렉토리의 전역 설정
-- 프로젝트별 로컬 설정
+Claude Code distributes its configuration across 8+ files and directories:
+- Managed settings controlled by system administrators
+- Global settings in the user's home directory
+- Project-specific local settings
 
-어떤 설정이 어디서 오는지, 현재 활성화된 값이 무엇인지 파악하기 어렵다. ccfg는 이 문제를 해결한다.
+It is difficult to determine which settings come from where and what the currently active values are. ccfg solves this problem.
 
-## 타겟 사용자
+## Target Users
 
-- Claude Code를 일상적으로 사용하는 개발자
-- 여러 프로젝트에서 서로 다른 Claude Code 설정을 사용하는 사용자
-- MCP 서버, 훅, 퍼미션 설정을 자주 변경하는 파워 유저
+- Developers who use Claude Code on a daily basis
+- Users who maintain different Claude Code settings across multiple projects
+- Power users who frequently modify MCP servers, hooks, and permission settings
 
-## 스캔 대상 파일 (3개 Scope)
+## Scanned Files (3 Scopes)
 
-### Scope 1: Managed (시스템 관리자 설정)
-| 파일 | 설명 |
+### Scope 1: Managed (System Administrator Settings)
+| File | Description |
 |---|---|
-| `/Library/Application Support/ClaudeCode/managed_settings.json` | 관리형 설정 (macOS) |
-| `/Library/Application Support/ClaudeCode/policies.json` | 정책 파일 (macOS) |
+| `/Library/Application Support/ClaudeCode/managed_settings.json` | Managed settings (macOS) |
+| `/Library/Application Support/ClaudeCode/policies.json` | Policy file (macOS) |
 
-### Scope 2: User (사용자 전역 설정)
-| 파일 | 설명 |
+### Scope 2: User (User Global Settings)
+| File | Description |
 |---|---|
-| `~/.claude/settings.json` | 사용자 전역 설정 |
-| `~/.claude/settings.local.json` | 사용자 로컬 설정 (gitignore 대상) |
-| `~/.claude.json` | 레거시 전역 설정 |
-| `~/.claude/CLAUDE.md` | 사용자 전역 지시사항 |
-| `~/.mcp.json` | MCP 서버 전역 설정 |
+| `~/.claude/settings.json` | User global settings |
+| `~/.claude/settings.local.json` | User local settings (gitignored) |
+| `~/.claude.json` | Legacy global settings |
+| `~/.claude/CLAUDE.md` | User global instructions |
+| `~/.mcp.json` | MCP server global settings |
 
-### Scope 3: Project (프로젝트별 설정)
-| 파일 | 설명 |
+### Scope 3: Project (Project-Specific Settings)
+| File | Description |
 |---|---|
-| `<root>/.claude/settings.json` | 프로젝트 설정 |
-| `<root>/.claude/settings.local.json` | 프로젝트 로컬 설정 |
-| `<root>/CLAUDE.md` | 프로젝트 지시사항 |
-| `<root>/.claude/CLAUDE.md` | 프로젝트 지시사항 (대체 위치) |
-| `<root>/.mcp.json` | MCP 서버 프로젝트 설정 |
+| `<root>/.claude/settings.json` | Project settings |
+| `<root>/.claude/settings.local.json` | Project local settings |
+| `<root>/CLAUDE.md` | Project instructions |
+| `<root>/.claude/CLAUDE.md` | Project instructions (alternate location) |
+| `<root>/.mcp.json` | MCP server project settings |
 
-## 기능 요구사항
+## Functional Requirements
 
-### FR-1: 설정 파일 탐색
-- 3개 Scope의 모든 설정 파일을 자동 탐색
-- 파일 존재 여부, 크기, 수정 시간 표시
-- 프로젝트 루트는 CWD 기준 자동 감지 (`.git` 디렉토리 탐색)
+### FR-1: Config File Discovery
+- Automatically discover all config files across the 3 Scopes
+- Display file existence, size, and modification time
+- Auto-detect project root from CWD (by traversing up to find `.git` directory)
 
-### FR-2: 트리 뷰 탐색
-- 좌측 패널에 Scope > 파일 계층 트리 표시
-- 키보드로 트리 탐색 (j/k/Enter/Esc)
-- 파일 존재 여부에 따른 시각적 구분
+### FR-2: Tree View Navigation
+- Display a Scope > File hierarchy tree in the left panel
+- Navigate the tree with keyboard (j/k/Enter/Esc)
+- Visually distinguish files based on existence status
 
-### FR-3: 내용 미리보기
-- 우측 패널에 선택한 파일의 내용 표시
-- JSON/JSONC 파일: 구문 강조
-- Markdown 파일: 렌더링된 형태로 표시
+### FR-3: Content Preview
+- Display the selected file's content in the right panel
+- JSON/JSONC files: syntax highlighted
+- Markdown files: rendered display
 
-### FR-4: 병합 뷰 (Merged View)
-- 모든 Scope의 JSON 설정을 병합한 최종 결과 표시
-- 각 값의 출처 Scope 표시
-- 우선순위: Project > User > Managed
+### FR-4: Merged View
+- Display the final merged result of all Scope JSON settings
+- Show the source Scope for each value
+- Priority: Project > User > Managed
 
-### FR-5: 검색
-- 설정 키/값 기반 검색
-- 검색 결과 하이라이트
+### FR-5: Search
+- Search by config key/value
+- Highlight search results
 
-## 비기능 요구사항
+## Non-Functional Requirements
 
-- **성능:** 시작부터 TUI 표시까지 500ms 이내
-- **읽기 전용:** 설정 파일을 절대 수정하지 않음
-- **단일 바이너리:** 외부 런타임 의존성 없음
-- **OS 지원:** macOS 우선, Linux 지원 예정
-- **접근성:** 키보드 전용 탐색 가능
+- **Performance:** Under 500ms from launch to TUI display
+- **Read-only:** Never modifies config files
+- **Single binary:** No external runtime dependencies
+- **OS Support:** macOS first, Linux support planned
+- **Accessibility:** Full keyboard-only navigation

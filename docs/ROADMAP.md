@@ -1,70 +1,70 @@
 # ccfg — Roadmap
 
-## Phase 1: 프로젝트 스캐폴딩 ✅
+## Phase 1: Project Scaffolding ✅
 
-- [x] Go 환경 설정
-- [x] 프로젝트 문서 (PRD, 기술 설계, 로드맵)
-- [x] go.mod 초기화
-- [x] 최소 엔트리포인트 (`cmd/ccfg/main.go`)
-- [x] 경로 상수 정의 (`internal/scanner/paths.go`)
-- [x] git 초기화 + .gitignore
+- [x] Go environment setup
+- [x] Project documentation (PRD, technical design, roadmap)
+- [x] go.mod initialization
+- [x] Minimal entry point (`cmd/ccfg/main.go`)
+- [x] Path constants definition (`internal/scanner/paths.go`)
+- [x] Git init + .gitignore
 
-## Phase 2: 스캐너 구현 ✅
+## Phase 2: Scanner Implementation ✅
 
-- [x] `internal/model/types.go` — 공유 타입 정의 (Scope, FileType, ConfigFile, ScanResult)
-- [x] `internal/scanner/scanner.go` — DefaultScanner 구현
-- [x] `internal/scanner/root.go` — 프로젝트 루트 감지 (.git 탐색)
-- [x] `internal/scanner/scanner_test.go` — 테스트 (임시 디렉토리 기반)
-- [x] Bubbletea, Lipgloss 등 의존성 추가
+- [x] `internal/model/types.go` -- Shared type definitions (Scope, FileType, ConfigFile, ScanResult)
+- [x] `internal/scanner/scanner.go` -- DefaultScanner implementation
+- [x] `internal/scanner/root.go` -- Project root detection (.git traversal)
+- [x] `internal/scanner/scanner_test.go` -- Tests (temp directory based)
+- [x] Add Bubbletea, Lipgloss, and other dependencies
 
-## Phase 3: 기본 TUI ✅
+## Phase 3: Basic TUI ✅
 
-- [x] `internal/tui/model.go` — 메인 TUI 모델 (Init, Update, View)
-- [x] `internal/tui/tree.go` — 트리 뷰 컴포넌트
-- [x] `internal/tui/preview.go` — 미리보기 패널 (raw text)
-- [x] `internal/tui/keys.go` — 키 바인딩 정의
-- [x] `internal/tui/styles.go` — Lipgloss 스타일 정의
-- [x] 30/70 split 레이아웃
-- [x] 키보드 네비게이션 (j/k/Enter/Tab/q)
+- [x] `internal/tui/model.go` -- Main TUI model (Init, Update, View)
+- [x] `internal/tui/tree.go` -- Tree view component
+- [x] `internal/tui/preview.go` -- Preview panel (raw text)
+- [x] `internal/tui/keys.go` -- Key binding definitions
+- [x] `internal/tui/styles.go` -- Lipgloss style definitions
+- [x] 30/70 split layout
+- [x] Keyboard navigation (j/k/Enter/Tab/q)
 
-## Phase 4: 파서 + 구문 강조 ✅
+## Phase 4: Parser + Syntax Highlighting ✅
 
-- [x] `internal/parser/json.go` — JSON/JSONC 파서 (주석/trailing comma 제거)
-- [x] `internal/parser/markdown.go` — Markdown 렌더러 (Glamour)
-- [x] 구문 강조 (Chroma monokai 테마) 적용
-- [x] 파싱 에러 시 원본 텍스트 폴백
+- [x] `internal/parser/json.go` -- JSON/JSONC parser (strips comments/trailing commas)
+- [x] `internal/parser/markdown.go` -- Markdown renderer (Glamour)
+- [x] Syntax highlighting (Chroma monokai theme) applied
+- [x] Raw text fallback on parse errors
 
-## Phase 5: 확장 스캔 대상 ✅
+## Phase 5: Extended Scan Targets ✅
 
-- [x] `~/.claude/commands/`, `.claude/commands/` — 커스텀 슬래시 명령어
-- [x] `~/.claude/skills/`, `.claude/skills/` — 설치된 에이전트 스킬
-- [x] `~/.claude/keybindings.json` — 키바인딩 설정
-- [x] 디렉토리 스캔 지원 (파일뿐 아니라 commands/, skills/ 하위 파일 나열)
-- [x] ConfigCategory 확장 (Commands, Skills, Keybindings 추가)
-- [x] settings.json 내부 `"hooks"` 키 파싱 → 훅 목록 트리 표시
-- [x] settings.json 내부 `"mcpServers"` 키 파싱 → MCP 서버 목록 표시
+- [x] `~/.claude/commands/`, `.claude/commands/` -- Custom slash commands
+- [x] `~/.claude/skills/`, `.claude/skills/` -- Installed agent skills
+- [x] `~/.claude/keybindings.json` -- Keybinding settings
+- [x] Directory scanning support (list files under commands/, skills/ in addition to individual files)
+- [x] ConfigCategory extension (Commands, Skills, Keybindings added)
+- [x] Parse `"hooks"` key inside settings.json -> display hook list in tree
+- [x] Parse `"mcpServers"` key inside settings.json -> display MCP server list
 
-## Phase 6: 고급 기능 ✅
+## Phase 6: Advanced Features ✅
 
-- [x] 병합 뷰 (Merged View) — 모든 Scope 설정 병합 + 출처 표시
-- [x] 검색 기능 (`/` 키로 진입)
-- [x] Linux 경로 지원
-- [x] 파일 변경 감지 (fsnotify) 및 자동 갱신
+- [x] Merged View -- merge all Scope settings + show source
+- [x] Search functionality (enter with `/` key)
+- [x] Linux path support
+- [x] File change detection (fsnotify) and auto-refresh
 
-## Phase 7: 배포 + 품질 ✅
+## Phase 7: Distribution + Quality ✅
 
-- [x] golangci-lint 설정 (`.golangci.yml`)
-- [x] goreleaser 설정 (`.goreleaser.yml`)
+- [x] golangci-lint configuration (`.golangci.yml`)
+- [x] goreleaser configuration (`.goreleaser.yml`)
 - [x] Makefile (build/test/lint/run/clean)
-- [ ] README.md 작성 (설치 방법, 스크린샷)
+- [ ] README.md (installation instructions, screenshots)
 - [x] Homebrew formula
-- [x] GitHub Actions 릴리스 자동화
-- [x] MIT 라이선스
+- [x] GitHub Actions release automation
+- [x] MIT license
 
-## Phase 8: 게임 스타일 테마
+## Phase 8: Game-Style Theme ✅
 
-- [x] 컬러풀한 테두리 (Scope별 고유 색상)
-- [x] 이모지 아이콘 (Scope, 파일 상태, 카테고리)
-- [x] 섹션 타이틀 스타일 (테두리 위 라벨)
-- [x] 하단 키 힌트 바 (게임 HUD 스타일)
-- [x] 전체 컬러 팔레트 리디자인 (다크 배경 + 네온 액센트)
+- [x] Colorful borders (unique color per Scope)
+- [x] Emoji icons (Scope, file status, category)
+- [x] Section title styling (labels on top of borders)
+- [x] Bottom key hint bar (game HUD style)
+- [x] Full color palette redesign (dark background + neon accents)

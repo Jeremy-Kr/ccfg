@@ -1,4 +1,4 @@
-# 바이너리
+# Binary
 /ccfg
 *.exe
 
@@ -15,12 +15,12 @@ vendor/
 .DS_Store
 Thumbs.db
 
-# 환경
+# Environment
 .env
 .env.*
 
-# MCP 서버 메타데이터
+# MCP server metadata
 .serena/
 
-# 임시 디버깅 도구
+# Temporary debugging tools
 cmd/verify/
