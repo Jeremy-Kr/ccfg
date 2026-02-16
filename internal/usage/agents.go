@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // transcriptLine는 transcript JSONL에서 필요한 필드만 파싱한다.
@@ -22,15 +23,7 @@ type agentInput struct {
 
 // collectAgents는 transcript에서 에이전트별 호출 횟수를 집계한다.
 func collectAgents(homeDir, projectFilter string) (map[string]int, error) {
-	dirs := transcriptDirs(homeDir, projectFilter)
-	counts := make(map[string]int)
-
-	for _, dir := range dirs {
-		if err := scanTranscripts(dir, counts, extractAgent); err != nil {
-			continue
-		}
-	}
-	return counts, nil
+	return collectFromTranscripts(homeDir, projectFilter, extractAgent)
 }
 
 func extractAgent(line []byte) (name string, ok bool) {
@@ -65,18 +58,22 @@ func transcriptDirs(homeDir, projectFilter string) []string {
 // encodeProjectPath는 프로젝트 경로를 Claude의 디렉토리 인코딩 형식으로 변환한다.
 // 예: /Users/jeremy/code/ccfg → -Users-jeremy-code-ccfg
 func encodeProjectPath(path string) string {
-	result := make([]byte, 0, len(path))
-	for _, c := range []byte(path) {
-		if c == '/' {
-			result = append(result, '-')
-		} else {
-			result = append(result, c)
-		}
-	}
-	return string(result)
+	return strings.ReplaceAll(path, "/", "-")
 }
 
 type extractFunc func(line []byte) (name string, ok bool)
+
+// collectFromTranscripts는 transcript 파일들에서 extract 함수로 데이터를 수집한다.
+func collectFromTranscripts(homeDir, projectFilter string, extract extractFunc) (map[string]int, error) {
+	dirs := transcriptDirs(homeDir, projectFilter)
+	counts := make(map[string]int)
+	for _, dir := range dirs {
+		if err := scanTranscripts(dir, counts, extract); err != nil {
+			continue
+		}
+	}
+	return counts, nil
+}
 
 // scanTranscripts는 디렉토리 내 JSONL 파일을 스캔하며 extract 함수로 데이터를 추출한다.
 func scanTranscripts(dir string, counts map[string]int, extract extractFunc) error {

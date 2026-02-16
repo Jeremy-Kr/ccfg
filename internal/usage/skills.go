@@ -12,15 +12,7 @@ type skillInput struct {
 
 // collectSkills는 transcript에서 스킬별 호출 횟수를 집계한다.
 func collectSkills(homeDir, projectFilter string) (map[string]int, error) {
-	dirs := transcriptDirs(homeDir, projectFilter)
-	counts := make(map[string]int)
-
-	for _, dir := range dirs {
-		if err := scanTranscripts(dir, counts, extractSkill); err != nil {
-			continue
-		}
-	}
-	return counts, nil
+	return collectFromTranscripts(homeDir, projectFilter, extractSkill)
 }
 
 func extractSkill(line []byte) (name string, ok bool) {

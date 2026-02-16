@@ -148,12 +148,11 @@ func (r *RankingModel) View(width, height int) string {
 	}
 
 	// 랭킹 리스트
-	listH := r.height
-	if listH < 1 {
-		listH = 1
+	visibleRows := r.height
+	if visibleRows < 1 {
+		visibleRows = 1
 	}
-
-	end := r.offset + listH
+	end := r.offset + visibleRows
 	if end > len(entries) {
 		end = len(entries)
 	}
@@ -216,19 +215,15 @@ func (r *RankingModel) renderTabs(width int) string {
 }
 
 func (r *RankingModel) renderScopeBar(width int) string {
-	allLabel := " All "
-	projLabel := " Project "
+	activeStyle := lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#333333"))
+	inactiveStyle := lipgloss.NewStyle().Foreground(colorDimGray)
 
-	var allStyle, projStyle lipgloss.Style
+	allStyle, projStyle := inactiveStyle, activeStyle.Foreground(colorCyan)
 	if r.scope == usage.ScopeAll {
-		allStyle = lipgloss.NewStyle().Bold(true).Foreground(colorYellow).Background(lipgloss.Color("#333333"))
-		projStyle = lipgloss.NewStyle().Foreground(colorDimGray)
-	} else {
-		allStyle = lipgloss.NewStyle().Foreground(colorDimGray)
-		projStyle = lipgloss.NewStyle().Bold(true).Foreground(colorCyan).Background(lipgloss.Color("#333333"))
+		allStyle, projStyle = activeStyle.Foreground(colorYellow), inactiveStyle
 	}
 
-	scopeBar := hudDesc.Render("범위: ") + allStyle.Render(allLabel) + hudDesc.Render(" / ") + projStyle.Render(projLabel)
+	scopeBar := hudDesc.Render("범위: ") + allStyle.Render(" All ") + hudDesc.Render(" / ") + projStyle.Render(" Project ")
 
 	hint := hudDesc.Render("s: 전환")
 	pad := width - lipgloss.Width(scopeBar) - lipgloss.Width(hint) - 4
@@ -268,11 +263,8 @@ func (r *RankingModel) renderEntry(rank int, entry usage.RankEntry, barWidth int
 	bar := gs.Render(strings.Repeat("█", filled)) +
 		lipgloss.NewStyle().Foreground(lipgloss.Color("#333333")).Render(strings.Repeat("░", empty))
 
-	// 카운트
-	countStr := fmt.Sprintf("%d", entry.Count)
-
-	line := fmt.Sprintf(" %s %s %s%s %s %s",
-		rankStr, badge, name, strings.Repeat(" ", namePad), bar, countStr)
+	line := fmt.Sprintf(" %s %s %s%s %s %d",
+		rankStr, badge, name, strings.Repeat(" ", namePad), bar, entry.Count)
 
 	if selected {
 		return lipgloss.NewStyle().Bold(true).Foreground(colorYellow).Render(line)

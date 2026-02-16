@@ -37,30 +37,6 @@ func (g Grade) String() string {
 	}
 }
 
-// Emoji는 등급에 해당하는 이모지를 반환한다.
-func (g Grade) Emoji() string {
-	switch g {
-	case GradeSSS:
-		return "🏆"
-	case GradeSS:
-		return "⭐"
-	case GradeS:
-		return "✨"
-	case GradeA:
-		return "🔥"
-	case GradeB:
-		return "💎"
-	case GradeC:
-		return "🌿"
-	case GradeD:
-		return "💤"
-	case GradeF:
-		return "🪨"
-	default:
-		return "❓"
-	}
-}
-
 // RankCategory는 랭킹의 종류를 나타낸다.
 type RankCategory int
 
@@ -80,20 +56,6 @@ func (r RankCategory) String() string {
 		return "Skills"
 	default:
 		return "Unknown"
-	}
-}
-
-// Emoji는 카테고리에 해당하는 이모지를 반환한다.
-func (r RankCategory) Emoji() string {
-	switch r {
-	case RankAgents:
-		return "🤖"
-	case RankTools:
-		return "🔧"
-	case RankSkills:
-		return "🧠"
-	default:
-		return "❓"
 	}
 }
 

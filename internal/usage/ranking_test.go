@@ -98,12 +98,9 @@ func TestGradeFromScore(t *testing.T) {
 	}
 }
 
-func TestGrade_StringAndEmoji(t *testing.T) {
+func TestGrade_String(t *testing.T) {
 	if GradeSSS.String() != "SSS" {
 		t.Errorf("GradeSSS.String() = %s", GradeSSS.String())
-	}
-	if GradeSSS.Emoji() != "🏆" {
-		t.Errorf("GradeSSS.Emoji() = %s", GradeSSS.Emoji())
 	}
 	if GradeF.String() != "F" {
 		t.Errorf("GradeF.String() = %s", GradeF.String())

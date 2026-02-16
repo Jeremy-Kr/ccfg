@@ -70,14 +70,14 @@ var (
 
 // 등급별 색상
 var gradeColors = map[usage.Grade]lipgloss.Color{
-	usage.GradeSSS: colorMagenta,                // 마젠타
-	usage.GradeSS:  colorYellow,                 // 골드
-	usage.GradeS:   colorOrange,                 // 오렌지
-	usage.GradeA:   colorRed,                    // 레드
-	usage.GradeB:   colorCyan,                   // 시안
-	usage.GradeC:   colorGreen,                  // 그린
-	usage.GradeD:   lipgloss.Color("#888888"),   // 회색
-	usage.GradeF:   lipgloss.Color("#444444"),   // 다크그레이
+	usage.GradeSSS: colorMagenta,
+	usage.GradeSS:  colorYellow,
+	usage.GradeS:   colorOrange,
+	usage.GradeA:   colorRed,
+	usage.GradeB:   colorCyan,
+	usage.GradeC:   colorGreen,
+	usage.GradeD:   lipgloss.Color("#888888"),
+	usage.GradeF:   lipgloss.Color("#444444"),
 }
 
 // gradeStyle은 등급에 해당하는 스타일을 반환한다.
