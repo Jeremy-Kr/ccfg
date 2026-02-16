@@ -157,12 +157,20 @@ func (p *PreviewModel) View(width int, focused bool) string {
 		b.WriteString("\n")
 
 		// 내용 표시
-		end := p.offset + p.height - 1 // 헤더 1줄 제외
+		visibleRows := p.height - 1 // 헤더 1줄 제외
+		end := p.offset + visibleRows
 		if end > len(p.lines) {
 			end = len(p.lines)
 		}
+
+		scrollBars := renderScrollbar(len(p.lines), visibleRows, p.offset)
+
 		for i := p.offset; i < end; i++ {
-			b.WriteString(p.lines[i])
+			line := p.lines[i]
+			if scrollBars != nil {
+				line += " " + scrollBars[i-p.offset]
+			}
+			b.WriteString(line)
 			if i < end-1 {
 				b.WriteString("\n")
 			}

@@ -268,9 +268,14 @@ func (t *TreeModel) View(width int, focused bool) string {
 		end = len(visible)
 	}
 
+	scrollBars := renderScrollbar(len(visible), t.height, t.offset)
+
 	for i := t.offset; i < end; i++ {
 		node := visible[i]
 		line := t.renderNode(node, i == t.cursor, focused)
+		if scrollBars != nil {
+			line += " " + scrollBars[i-t.offset]
+		}
 		b.WriteString(line)
 		if i < end-1 {
 			b.WriteString("\n")
