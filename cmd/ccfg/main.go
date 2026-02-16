@@ -22,7 +22,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	m := tui.NewModel(result, scanDuration)
+	m := tui.NewModel(result, scanDuration, s)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {

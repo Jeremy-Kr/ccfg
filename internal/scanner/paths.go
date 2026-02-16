@@ -8,6 +8,53 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/model"
 )
 
+// WatchPaths는 모든 Scope의 설정 파일/디렉토리 경로를 조합하여
+// fsnotify로 감시할 대상 목록을 반환한다.
+// 파일은 부모 디렉토리 + 파일 자체(존재하면)를, 디렉토리는 그대로 추가한다.
+func WatchPaths(projectRoot string) []string {
+	seen := make(map[string]bool)
+	var paths []string
+
+	add := func(p string) {
+		if seen[p] {
+			return
+		}
+		seen[p] = true
+		paths = append(paths, p)
+	}
+
+	collect := func(base string, entries []FileEntry) {
+		if base == "" {
+			return
+		}
+		for _, e := range entries {
+			abs := filepath.Join(base, e.RelPath)
+			if e.IsDir {
+				add(abs)
+			} else {
+				// 부모 디렉토리 (파일 생성/삭제 감지용)
+				add(filepath.Dir(abs))
+				// 파일 자체 (내용 변경 감지용, 존재하는 경우만)
+				if _, err := os.Stat(abs); err == nil {
+					add(abs)
+				}
+			}
+		}
+	}
+
+	if base, entries := ManagedPaths(); base != "" {
+		collect(base, entries)
+	}
+	if base, entries := UserPaths(); base != "" {
+		collect(base, entries)
+	}
+	if base, entries := ProjectPaths(projectRoot); base != "" {
+		collect(base, entries)
+	}
+
+	return paths
+}
+
 // FileEntry는 스캔 대상 파일 하나를 정의한다.
 type FileEntry struct {
 	RelPath     string               // 기준 디렉토리로부터의 상대 경로

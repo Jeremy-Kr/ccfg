@@ -130,6 +130,9 @@ func dirIcon(isDir bool) string {
 	return "📄"
 }
 
+// InvalidateCache는 현재 캐시된 파일을 무효화하여 다음 SetFile 호출 시 강제 갱신한다.
+func (p *PreviewModel) InvalidateCache() { p.file = nil }
+
 // ScrollUp은 미리보기를 위로 스크롤한다.
 func (p *PreviewModel) ScrollUp(n int) {
 	p.offset -= n

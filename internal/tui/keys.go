@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type keyMap struct {
@@ -73,7 +74,7 @@ var keys = keyMap{
 }
 
 // renderHUD는 HUD 풋터를 렌더링한다.
-func renderHUD(existCount, totalCount int, scopeName string, scanSec float64) string {
+func renderHUD(existCount, totalCount int, scopeName string, scanSec float64, watching bool) string {
 	sep := hudSep.Render(" │ ")
 
 	nav := hudLabelNav.Render("[NAV]") + " " +
@@ -95,5 +96,9 @@ func renderHUD(existCount, totalCount int, scopeName string, scanSec float64) st
 	scope := hudDesc.Render(scopeName)
 	scan := hudDesc.Render(fmt.Sprintf("⏱ %.1fs", scanSec))
 
-	return nav + sep + cmd + sep + stats + sep + scope + sep + scan
+	hud := nav + sep + cmd + sep + stats + sep + scope + sep + scan
+	if watching {
+		hud += sep + lipgloss.NewStyle().Foreground(colorGreen).Render("👁 watching")
+	}
+	return hud
 }

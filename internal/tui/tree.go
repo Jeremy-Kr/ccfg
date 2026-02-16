@@ -399,3 +399,70 @@ func findDepth(nodes []TreeNode, path string, depth int) int {
 	return 0
 }
 
+// TreeState는 트리의 펼침 상태와 선택 위치를 캡처한 스냅샷이다.
+type TreeState struct {
+	Expanded     map[string]bool // key → expanded (scope 헤더는 "__scope__"+label, 파일은 path)
+	SelectedPath string          // 현재 선택된 파일 경로
+}
+
+// CaptureState는 현재 트리의 펼침 상태와 커서 위치를 캡처한다.
+func (t *TreeModel) CaptureState() TreeState {
+	expanded := make(map[string]bool)
+	for _, root := range t.roots {
+		expanded["__scope__"+root.Label] = root.Expanded
+		captureExpanded(root.Children, expanded)
+	}
+
+	var selectedPath string
+	if f := t.SelectedFile(); f != nil {
+		selectedPath = f.Path
+	}
+
+	return TreeState{
+		Expanded:     expanded,
+		SelectedPath: selectedPath,
+	}
+}
+
+func captureExpanded(nodes []TreeNode, out map[string]bool) {
+	for _, node := range nodes {
+		if node.File != nil && len(node.Children) > 0 {
+			out[node.File.Path] = node.Expanded
+		}
+		captureExpanded(node.Children, out)
+	}
+}
+
+// RestoreState는 캡처된 상태를 현재 트리에 복원한다.
+func (t *TreeModel) RestoreState(state TreeState) {
+	for i := range t.roots {
+		if v, ok := state.Expanded["__scope__"+t.roots[i].Label]; ok {
+			t.roots[i].Expanded = v
+		}
+		restoreExpanded(t.roots[i].Children, state.Expanded)
+	}
+
+	// 선택 위치 복원
+	if state.SelectedPath != "" {
+		visible := t.visibleNodes()
+		for i, node := range visible {
+			if node.File != nil && node.File.Path == state.SelectedPath {
+				t.cursor = i
+				t.adjustScroll()
+				return
+			}
+		}
+	}
+	t.clampCursor()
+}
+
+func restoreExpanded(nodes []TreeNode, expanded map[string]bool) {
+	for i := range nodes {
+		if nodes[i].File != nil && len(nodes[i].Children) > 0 {
+			if v, ok := expanded[nodes[i].File.Path]; ok {
+				nodes[i].Expanded = v
+			}
+		}
+		restoreExpanded(nodes[i].Children, expanded)
+	}
+}

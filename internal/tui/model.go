@@ -11,7 +11,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jeremy-kr/ccfg/internal/merger"
 	"github.com/jeremy-kr/ccfg/internal/model"
+	"github.com/jeremy-kr/ccfg/internal/scanner"
 	"github.com/jeremy-kr/ccfg/internal/usage"
+	"github.com/jeremy-kr/ccfg/internal/watcher"
 )
 
 // Pane은 현재 포커스된 패널을 나타낸다.
@@ -40,10 +42,12 @@ type Model struct {
 	rankingMode  bool
 	ranking      RankingModel
 	scanDuration time.Duration
+	watcher      *watcher.Watcher  // 파일 감시자 (nil이면 비활성)
+	sc           *scanner.Scanner  // rescan용
 }
 
 // NewModel은 ScanResult로부터 TUI 모델을 생성한다.
-func NewModel(result *model.ScanResult, scanDuration time.Duration) Model {
+func NewModel(result *model.ScanResult, scanDuration time.Duration, s *scanner.Scanner) Model {
 	tree := NewTreeModel(result)
 	homeDir, _ := os.UserHomeDir()
 	m := Model{
@@ -53,14 +57,23 @@ func NewModel(result *model.ScanResult, scanDuration time.Duration) Model {
 		merged:       merger.Merge(result),
 		ranking:      NewRankingModel(&usage.Collector{HomeDir: homeDir, ProjectPath: result.RootDir}),
 		scanDuration: scanDuration,
+		sc:           s,
 	}
 	if f := tree.SelectedFile(); f != nil {
 		m.preview.SetFile(f)
 	}
+
+	// 파일 감시자 생성 (실패 시 nil — 감시 없이 동작)
+	paths := scanner.WatchPaths(result.RootDir)
+	if w, err := watcher.New(paths); err == nil {
+		m.watcher = w
+	}
+
 	return m
 }
 
 // fileStats는 존재하는 파일 수와 전체 파일 수를 반환한다.
+// 가상 노드(IsVirtual)는 실제 파일이 아니므로 카운트에서 제외한다.
 func (m *Model) fileStats() (exist, total int) {
 	for _, f := range m.scan.All() {
 		total++
@@ -68,6 +81,9 @@ func (m *Model) fileStats() (exist, total int) {
 			exist++
 		}
 		for _, c := range f.Children {
+			if c.IsVirtual {
+				continue
+			}
 			total++
 			if c.Exists {
 				exist++
@@ -78,11 +94,17 @@ func (m *Model) fileStats() (exist, total int) {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return m.waitCmd()
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case watcher.FileChangedMsg:
+		return m.handleFileChanged()
+
+	case watcher.ErrorMsg:
+		return m, m.waitCmd()
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -103,6 +125,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, keys.Quit):
+			if m.watcher != nil {
+				m.watcher.Close()
+			}
 			return m, tea.Quit
 
 		case key.Matches(msg, keys.Search):
@@ -225,7 +250,7 @@ func (m Model) View() string {
 		existCount, totalCount := m.fileStats()
 		scopeName := m.tree.SelectedScope().String()
 		scanSec := m.scanDuration.Seconds()
-		footer = footerStyle.Render(renderHUD(existCount, totalCount, scopeName, scanSec))
+		footer = footerStyle.Render(renderHUD(existCount, totalCount, scopeName, scanSec, m.watcher != nil))
 	}
 
 	// 메인 영역 치수
@@ -392,6 +417,48 @@ func (m *Model) treeWidth() int {
 		w = 20
 	}
 	return w
+}
+
+// waitCmd는 watcher가 활성화된 경우 다음 변경 대기 명령을 반환한다.
+func (m *Model) waitCmd() tea.Cmd {
+	if m.watcher != nil {
+		return m.watcher.WaitForChange()
+	}
+	return nil
+}
+
+// handleFileChanged는 파일 변경 감지 시 리스캔을 수행하고 트리를 재구성한다.
+func (m Model) handleFileChanged() (tea.Model, tea.Cmd) {
+	if m.sc == nil {
+		return m, m.waitCmd()
+	}
+
+	// 트리 상태 캡처
+	state := m.tree.CaptureState()
+
+	// 리스캔
+	start := time.Now()
+	result, err := m.sc.Scan()
+	scanDuration := time.Since(start)
+	if err != nil {
+		return m, m.waitCmd()
+	}
+
+	// 트리 재구성 + 상태 복원
+	m.scan = result
+	m.scanDuration = scanDuration
+	m.tree = NewTreeModel(result)
+	m.tree.RestoreState(state)
+	m.tree.SetHeight(m.contentHeight())
+
+	// 머지 갱신
+	m.merged = merger.Merge(result)
+
+	// 프리뷰 갱신
+	m.preview.InvalidateCache()
+	m.syncPreview()
+
+	return m, m.waitCmd()
 }
 
 func (m *Model) previewWidth() int {
