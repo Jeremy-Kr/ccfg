@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,6 +42,13 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 	p.file = file
 	p.offset = 0
 	p.isCardMode = false
+
+	// 가상 노드 — JSON 내부 섹션 미리보기
+	if file.IsVirtual {
+		p.content = p.renderVirtualNode(file)
+		p.lines = strings.Split(p.content, "\n")
+		return
+	}
 
 	if !file.Exists {
 		p.content = "(파일이 존재하지 않습니다)"
@@ -439,4 +447,55 @@ func wrapText(text string, width int) []string {
 	}
 	lines = append(lines, current)
 	return lines
+}
+
+// renderVirtualNode는 가상 노드(JSON 내부 섹션)의 미리보기를 렌더링한다.
+func (p *PreviewModel) renderVirtualNode(file *model.ConfigFile) string {
+	parts := strings.SplitN(file.Path, "#", 2)
+	if len(parts) != 2 {
+		return "(가상 노드 경로 파싱 실패)"
+	}
+	realPath := parts[0]
+	dotPath := parts[1]
+
+	data, err := os.ReadFile(realPath)
+	if err != nil {
+		return fmt.Sprintf("(읽기 실패: %v)", err)
+	}
+
+	cleaned := parser.StripJSONC(string(data))
+	var obj any
+	if err := json.Unmarshal([]byte(cleaned), &obj); err != nil {
+		return fmt.Sprintf("(JSON 파싱 실패: %v)", err)
+	}
+
+	section := navigateJSON(obj, dotPath)
+	if section == nil {
+		return fmt.Sprintf("(섹션을 찾을 수 없습니다: %s)", dotPath)
+	}
+
+	// FormatJSON이 내부적으로 pretty-print + 구문 강조를 처리한다.
+	sectionBytes, err := json.Marshal(section)
+	if err != nil {
+		return fmt.Sprintf("%v", section)
+	}
+	return parser.FormatJSON(string(sectionBytes))
+}
+
+// navigateJSON은 점 표기법(dotPath)으로 JSON 객체를 탐색한다.
+func navigateJSON(obj any, dotPath string) any {
+	keys := strings.Split(dotPath, ".")
+	current := obj
+	for _, k := range keys {
+		m, ok := current.(map[string]any)
+		if !ok {
+			return nil
+		}
+		v, exists := m[k]
+		if !exists {
+			return nil
+		}
+		current = v
+	}
+	return current
 }

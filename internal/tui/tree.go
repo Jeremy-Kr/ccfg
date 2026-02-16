@@ -28,6 +28,7 @@ var categoryEmoji = map[model.ConfigCategory]string{
 	model.CategorySkills:       "🧠",
 	model.CategoryAgents:       "🤖",
 	model.CategoryKeybindings:  "🎮",
+	model.CategoryHooks:        "🪝",
 }
 
 // TreeNode는 트리의 한 항목을 나타낸다.
@@ -90,11 +91,9 @@ func makeFileNode(f model.ConfigFile, scope model.Scope) TreeNode {
 		Scope: scope,
 		File:  &f,
 	}
-	if f.IsDir && len(f.Children) > 0 {
-		for _, child := range f.Children {
-			child := child
-			node.Children = append(node.Children, makeFileNode(child, scope))
-		}
+	for _, child := range f.Children {
+		child := child
+		node.Children = append(node.Children, makeFileNode(child, scope))
 	}
 	return node
 }
@@ -209,8 +208,8 @@ func (t *TreeModel) Toggle() {
 		return
 	}
 
-	// 디렉토리 파일 노드 토글 (Children이 있는 경우)
-	if node.File.IsDir && len(node.Children) > 0 {
+	// 파일 노드 토글 (Children이 있는 경우 — 디렉토리 또는 가상 그룹)
+	if len(node.Children) > 0 {
 		toggleByPath(t.roots, node.File.Path)
 		t.clampCursor()
 	}
@@ -338,8 +337,8 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 		emoji = e + " "
 	}
 
-	// 디렉토리 노드 (펼침 가능)
-	if node.File.IsDir && len(node.Children) > 0 {
+	// 펼침 가능한 노드 (디렉토리 또는 Children이 있는 가상 그룹)
+	if len(node.Children) > 0 {
 		arrow := "▶"
 		if node.Expanded {
 			arrow = "▼"
@@ -350,6 +349,15 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 			return treeSelectedStyle.Render(text)
 		}
 		return dirStyle.Render(text)
+	}
+
+	// 가상 리프 노드 (JSON 내부 섹션의 개별 항목)
+	if node.File.IsVirtual {
+		text := fmt.Sprintf("%s%s%s", indent, emoji, node.Label)
+		if selected && focused {
+			return treeSelectedStyle.Render(text)
+		}
+		return treeItemStyle.Render(text)
 	}
 
 	// 파일 노드
@@ -390,3 +398,4 @@ func findDepth(nodes []TreeNode, path string, depth int) int {
 	}
 	return 0
 }
+
