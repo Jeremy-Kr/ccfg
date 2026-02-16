@@ -1,37 +1,39 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+	"github.com/jeremy-kr/ccfg/internal/usage"
+)
 
 var (
-	// 색상
-	colorPrimary   = lipgloss.Color("#7C3AED") // 보라색
-	colorSecondary = lipgloss.Color("#6B7280") // 회색
-	colorAccent    = lipgloss.Color("#10B981") // 초록 (존재하는 파일)
-	colorMuted     = lipgloss.Color("#4B5563") // 어두운 회색 (미존재 파일)
-	colorBorder    = lipgloss.Color("#374151")
-	colorFocused   = lipgloss.Color("#7C3AED")
+	// 레트로 아케이드 색상 팔레트
+	colorYellow  = lipgloss.Color("#FFD700") // 골드 옐로우 — 제목, 포커스
+	colorOrange  = lipgloss.Color("#FF8C00") // 오렌지 — 테두리, 강조
+	colorRed     = lipgloss.Color("#FF4444") // 레드 — 미존재 파일, 경고
+	colorGreen   = lipgloss.Color("#39FF14") // 네온 그린 — 존재 파일, 성공
+	colorCyan    = lipgloss.Color("#00FFFF") // 시안 — 정보, Project scope
+	colorMagenta = lipgloss.Color("#FF00FF") // 마젠타 — 검색, 특수 강조
+	colorDimGray = lipgloss.Color("#555555") // 어두운 회색 — 비활성 테두리
 
 	// 헤더
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(colorPrimary).
-			Padding(0, 1)
+			Foreground(colorYellow)
 
-	// 풋터 (키 힌트)
+	// 풋터 (HUD)
 	footerStyle = lipgloss.NewStyle().
-			Foreground(colorSecondary).
 			Padding(0, 1)
 
-	// 패널 테두리 (포커스 없음)
+	// 패널 테두리 (포커스 없음) — Double Line
 	panelStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colorBorder).
+			Border(lipgloss.DoubleBorder()).
+			BorderForeground(colorDimGray).
 			Padding(0, 1)
 
-	// 패널 테두리 (포커스)
+	// 패널 테두리 (포커스) — Double Line
 	panelFocusedStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(colorFocused).
+				Border(lipgloss.DoubleBorder()).
+				BorderForeground(colorOrange).
 				Padding(0, 1)
 
 	// 트리 항목
@@ -40,18 +42,57 @@ var (
 	// 트리 선택된 항목
 	treeSelectedStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(colorPrimary)
+				Foreground(colorYellow)
 
-	// Scope 헤더 (트리 내)
+	// Scope 헤더 스타일 (기본 — renderNode에서 Scope별로 오버라이드)
 	scopeHeaderStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#F9FAFB"))
+				Bold(true)
 
 	// 파일 존재
 	fileExistsStyle = lipgloss.NewStyle().
-			Foreground(colorAccent)
+			Foreground(colorGreen)
 
 	// 파일 미존재
 	fileMissingStyle = lipgloss.NewStyle().
-				Foreground(colorMuted)
+				Foreground(colorRed)
+
+	// 디렉토리 노드
+	dirStyle = lipgloss.NewStyle().
+			Foreground(colorOrange)
+
+	// HUD 요소별 스타일
+	hudLabelNav = lipgloss.NewStyle().Bold(true).Foreground(colorGreen)
+	hudLabelCmd = lipgloss.NewStyle().Bold(true).Foreground(colorCyan)
+	hudKey      = lipgloss.NewStyle().Bold(true).Foreground(colorYellow)
+	hudDesc     = lipgloss.NewStyle().Foreground(colorDimGray)
+	hudSep      = lipgloss.NewStyle().Foreground(colorOrange)
 )
+
+// 등급별 색상
+var gradeColors = map[usage.Grade]lipgloss.Color{
+	usage.GradeSSS: colorMagenta,                // 마젠타
+	usage.GradeSS:  colorYellow,                 // 골드
+	usage.GradeS:   colorOrange,                 // 오렌지
+	usage.GradeA:   colorRed,                    // 레드
+	usage.GradeB:   colorCyan,                   // 시안
+	usage.GradeC:   colorGreen,                  // 그린
+	usage.GradeD:   lipgloss.Color("#888888"),   // 회색
+	usage.GradeF:   lipgloss.Color("#444444"),   // 다크그레이
+}
+
+// gradeStyle은 등급에 해당하는 스타일을 반환한다.
+func gradeStyle(g usage.Grade) lipgloss.Style {
+	color, ok := gradeColors[g]
+	if !ok {
+		color = colorDimGray
+	}
+	return lipgloss.NewStyle().Bold(true).Foreground(color)
+}
+
+// panelStyleFor는 포커스 상태에 따라 패널 스타일을 반환한다.
+func panelStyleFor(focused bool) lipgloss.Style {
+	if focused {
+		return panelFocusedStyle
+	}
+	return panelStyle
+}
