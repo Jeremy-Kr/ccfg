@@ -115,7 +115,7 @@ func (r *RankingModel) adjustScroll() {
 
 // View는 랭킹 뷰를 렌더링한다.
 func (r *RankingModel) View(width, height int) string {
-	r.height = height - 5 // 탭바 + 범위바 + 구분선 + 여백
+	r.height = height - 3 // 탭바 + 범위바 + 구분선
 
 	var b strings.Builder
 

@@ -118,6 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rankingMode = true
 			m.mergeMode = false
 			m.ranking.Load()
+			m.ranking.SetHeight(m.contentHeight() - 3)
 			return m, nil
 
 		case key.Matches(msg, keys.Tab):
@@ -370,6 +371,7 @@ func (m *Model) updateLayout() {
 	h := m.contentHeight()
 	m.tree.SetHeight(h)
 	m.preview.SetHeight(h)
+	m.ranking.SetHeight(h - 3) // 탭바 + 범위바 + 구분선
 }
 
 func (m *Model) contentHeight() int {
