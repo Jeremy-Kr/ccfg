@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jeremy-kr/ccfg/internal/model"
+	"github.com/jeremy-kr/ccfg/internal/parser"
 )
 
 // PreviewModel은 우측 미리보기 패널의 상태를 관리한다.
@@ -48,7 +49,15 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 		return
 	}
 
-	p.content = string(data)
+	raw := string(data)
+	switch file.FileType {
+	case model.FileTypeJSON, model.FileTypeJSONC:
+		p.content = parser.FormatJSON(raw)
+	case model.FileTypeMarkdown:
+		p.content = parser.FormatMarkdown(raw)
+	default:
+		p.content = raw
+	}
 	p.lines = strings.Split(p.content, "\n")
 }
 

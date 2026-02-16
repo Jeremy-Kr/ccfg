@@ -27,12 +27,12 @@
 - [x] 30/70 split 레이아웃
 - [x] 키보드 네비게이션 (j/k/Enter/Tab/q)
 
-## Phase 4: 파서 + 구문 강조
+## Phase 4: 파서 + 구문 강조 ✅
 
-- [ ] `internal/parser/json.go` — JSON/JSONC 파서
-- [ ] `internal/parser/markdown.go` — Markdown 렌더러 (Glamour)
-- [ ] 구문 강조 (Chroma) 적용
-- [ ] 파싱 에러 시 원본 텍스트 폴백
+- [x] `internal/parser/json.go` — JSON/JSONC 파서 (주석/trailing comma 제거)
+- [x] `internal/parser/markdown.go` — Markdown 렌더러 (Glamour)
+- [x] 구문 강조 (Chroma monokai 테마) 적용
+- [x] 파싱 에러 시 원본 텍스트 폴백
 
 ## Phase 5: 확장 스캔 대상
 
