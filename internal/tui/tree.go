@@ -268,7 +268,8 @@ func (t *TreeModel) View(width int, focused bool) string {
 		end = len(visible)
 	}
 
-	style := panelStyleFor(focused).Width(width).Height(t.height)
+	base := panelStyleFor(focused)
+	style := base.Width(width - base.GetHorizontalBorderSize()).Height(t.height)
 	availWidth := width - style.GetHorizontalFrameSize()
 
 	scrollBars := renderScrollbar(len(visible), t.height, t.offset)
