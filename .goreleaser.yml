@@ -33,7 +33,8 @@ changelog:
       - "^style:"
 
 brews:
-  - repository:
+  - skip_upload: auto
+    repository:
       owner: jeremy-kr
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
