@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -12,11 +13,13 @@ import (
 
 // PreviewModel은 우측 미리보기 패널의 상태를 관리한다.
 type PreviewModel struct {
-	file    *model.ConfigFile // 현재 표시 중인 파일
-	content string            // 파일 내용
-	lines   []string          // 줄 단위 분할
-	offset  int               // 스크롤 오프셋
-	height  int               // 표시 가능한 행 수
+	file       *model.ConfigFile // 현재 표시 중인 파일
+	content    string            // 파일 내용
+	lines      []string          // 줄 단위 분할
+	offset     int               // 스크롤 오프셋
+	height     int               // 표시 가능한 행 수
+	isCardMode bool              // 카드 모드 (agents/skills 디렉토리)
+	lastWidth  int               // 카드 모드에서 사용한 마지막 폭
 }
 
 // SetFile은 미리보기에 표시할 파일을 설정한다.
@@ -26,6 +29,7 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 		p.content = ""
 		p.lines = nil
 		p.offset = 0
+		p.isCardMode = false
 		return
 	}
 
@@ -36,6 +40,7 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 
 	p.file = file
 	p.offset = 0
+	p.isCardMode = false
 
 	if !file.Exists {
 		p.content = "(파일이 존재하지 않습니다)"
@@ -43,8 +48,20 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 		return
 	}
 
-	// 디렉토리인 경우 내용 목록 표시
+	// 디렉토리인 경우
 	if file.IsDir {
+		// agents/skills 디렉토리는 카드 모드
+		if file.Category == model.CategoryAgents || file.Category == model.CategorySkills {
+			p.isCardMode = true
+			// lastWidth가 있으면 즉시 카드 생성, 없으면 PrepareCardContent 호출 대기
+			if p.lastWidth > 0 {
+				p.generateCardLines(p.lastWidth)
+			} else {
+				p.content = ""
+				p.lines = nil
+			}
+			return
+		}
 		p.content = p.renderDir(file)
 		p.lines = strings.Split(p.content, "\n")
 		return
@@ -130,12 +147,45 @@ func (p *PreviewModel) SetHeight(h int) {
 	p.height = h
 }
 
+// PrepareCardContent는 카드 모드일 때 주어진 폭으로 카드 lines를 미리 생성한다.
+// Update() 흐름에서 호출해야 한다 (View()는 value receiver라 상태가 유지되지 않음).
+func (p *PreviewModel) PrepareCardContent(width int) {
+	if !p.isCardMode || p.file == nil || width <= 0 {
+		return
+	}
+	if p.lastWidth == width && p.lines != nil {
+		return // 이미 같은 폭으로 생성됨
+	}
+	p.generateCardLines(width)
+}
+
+func (p *PreviewModel) generateCardLines(width int) {
+	p.lastWidth = width
+	availW := width - panelStyle.GetHorizontalFrameSize()
+	cardW := max(availW-2, 20)
+
+	var cardContent string
+	switch p.file.Category {
+	case model.CategoryAgents:
+		cardContent = p.renderAgentCards(p.file, cardW)
+	case model.CategorySkills:
+		cardContent = p.renderSkillCards(p.file, cardW)
+	}
+
+	p.content = cardContent
+	p.lines = strings.Split(cardContent, "\n")
+}
+
 // View는 미리보기를 문자열로 렌더링한다.
 func (p *PreviewModel) View(width int, focused bool) string {
 	var b strings.Builder
+	availW := width - panelStyle.GetHorizontalFrameSize()
 
 	if p.file == nil {
 		b.WriteString("파일을 선택하세요")
+	} else if p.isCardMode {
+		// 카드 모드: PrepareCardContent()에서 미리 생성된 p.lines 사용
+		renderScrollableLines(&b, p.lines, p.height, p.offset, availW)
 	} else {
 		// 파일 정보 헤더 (장식 라인)
 		icon := dirIcon(p.file.IsDir)
@@ -144,54 +194,249 @@ func (p *PreviewModel) View(width int, focused bool) string {
 			info = fmt.Sprintf("%s (%d bytes)", p.file.Path, p.file.Size)
 		}
 		label := fmt.Sprintf("[ %s %s ]", icon, info)
-		// 패널 내부 가용 폭에 맞춰 ━ 패딩
-		availW := width - panelStyle.GetHorizontalFrameSize()
-		pad := availW - lipgloss.Width(label)
-		if pad < 2 {
-			pad = 2
-		}
+		pad := max(availW-lipgloss.Width(label), 2)
 		left := pad / 2
 		right := pad - left
 		decoratedHeader := strings.Repeat("━", left) + label + strings.Repeat("━", right)
 		b.WriteString(lipgloss.NewStyle().Foreground(colorCyan).Render(decoratedHeader))
 		b.WriteString("\n")
 
-		// 내용 표시
-		visibleRows := p.height - 1 // 헤더 1줄 제외
-		end := p.offset + visibleRows
-		if end > len(p.lines) {
-			end = len(p.lines)
-		}
-
-		scrollBars := renderScrollbar(len(p.lines), visibleRows, p.offset)
-
-		if scrollBars != nil {
-			contentW := availW - 1
-			for i := p.offset; i < end; i++ {
-				line := lipgloss.NewStyle().MaxWidth(contentW).Render(p.lines[i])
-				if gap := contentW - lipgloss.Width(line); gap > 0 {
-					line += strings.Repeat(" ", gap)
-				}
-				line += scrollBars[i-p.offset]
-				b.WriteString(line)
-				if i < end-1 {
-					b.WriteString("\n")
-				}
-			}
-		} else {
-			for i := p.offset; i < end; i++ {
-				b.WriteString(p.lines[i])
-				if i < end-1 {
-					b.WriteString("\n")
-				}
-			}
-		}
+		// 내용 표시 (헤더 1줄 제외)
+		renderScrollableLines(&b, p.lines, p.height-1, p.offset, availW)
 	}
 
 	// 패널 높이 고정 + 줄바꿈 방지
-	style := panelStyleFor(focused).Width(width).Height(p.height)
+	base := panelStyleFor(focused)
+	style := base.Width(width - base.GetHorizontalBorderSize()).Height(p.height)
 	availWidth := width - style.GetHorizontalFrameSize()
 	content := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
 
 	return style.Render(content)
+}
+
+// renderScrollableLines는 lines를 스크롤바와 함께 렌더링하여 b에 기록한다.
+func renderScrollableLines(b *strings.Builder, lines []string, visibleRows, offset, availW int) {
+	end := offset + visibleRows
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	scrollBars := renderScrollbar(len(lines), visibleRows, offset)
+
+	if scrollBars != nil {
+		contentW := availW - 1
+		for i := offset; i < end; i++ {
+			line := lipgloss.NewStyle().MaxWidth(contentW).Render(lines[i])
+			if gap := contentW - lipgloss.Width(line); gap > 0 {
+				line += strings.Repeat(" ", gap)
+			}
+			line += scrollBars[i-offset]
+			b.WriteString(line)
+			if i < end-1 {
+				b.WriteString("\n")
+			}
+		}
+	} else {
+		for i := offset; i < end; i++ {
+			b.WriteString(lines[i])
+			if i < end-1 {
+				b.WriteString("\n")
+			}
+		}
+	}
+}
+
+// renderAgentCards는 에이전트 디렉토리의 .md 파일들을 캐릭터 카드로 렌더링한다.
+func (p *PreviewModel) renderAgentCards(file *model.ConfigFile, width int) string {
+	var cards []string
+
+	if len(file.Children) > 0 {
+		for _, child := range file.Children {
+			if child.IsDir || !child.Exists {
+				continue
+			}
+			meta := parser.ParseAgentMeta(child.Path)
+			if meta != nil {
+				cards = append(cards, renderAgentCard(meta, width))
+			}
+		}
+	} else {
+		entries, err := os.ReadDir(file.Path)
+		if err != nil {
+			return fmt.Sprintf("(읽기 실패: %v)", err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			meta := parser.ParseAgentMeta(filepath.Join(file.Path, entry.Name()))
+			if meta != nil {
+				cards = append(cards, renderAgentCard(meta, width))
+			}
+		}
+	}
+
+	if len(cards) == 0 {
+		return "(에이전트 파일 없음)"
+	}
+	return strings.Join(cards, "\n")
+}
+
+// renderSkillCards는 스킬 디렉토리의 SKILL.md 파일들을 어빌리티 카드로 렌더링한다.
+func (p *PreviewModel) renderSkillCards(file *model.ConfigFile, width int) string {
+	var cards []string
+
+	if len(file.Children) > 0 {
+		for _, child := range file.Children {
+			if !child.IsDir || !child.Exists {
+				continue
+			}
+			skillPath := filepath.Join(child.Path, "SKILL.md")
+			meta := parser.ParseSkillMeta(skillPath)
+			if meta != nil {
+				cards = append(cards, renderSkillCard(meta, width))
+			}
+		}
+	} else {
+		entries, err := os.ReadDir(file.Path)
+		if err != nil {
+			return fmt.Sprintf("(읽기 실패: %v)", err)
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			skillPath := filepath.Join(file.Path, entry.Name(), "SKILL.md")
+			meta := parser.ParseSkillMeta(skillPath)
+			if meta != nil {
+				cards = append(cards, renderSkillCard(meta, width))
+			}
+		}
+	}
+
+	if len(cards) == 0 {
+		return "(스킬 파일 없음)"
+	}
+	return strings.Join(cards, "\n")
+}
+
+// renderAgentCard는 개별 에이전트 캐릭터 카드를 렌더링한다.
+// width는 카드 박스의 총 폭 (border 포함).
+func renderAgentCard(meta *parser.AgentMeta, width int) string {
+	var lines []string
+
+	// lipgloss Width(w)는 w - padding 에서 word wrap.
+	// 따라서 contentW = width - border - padding 이 실제 콘텐츠 폭.
+	borderW := agentCardStyle.GetHorizontalBorderSize()
+	paddingW := agentCardStyle.GetHorizontalFrameSize() - borderW
+	contentW := width - borderW - paddingW
+
+	// 타이틀 라인: 🤖 name
+	title := agentCardTitleStyle.Render("🤖 " + meta.Name)
+	lines = append(lines, title)
+
+	// 역할 구분선
+	roleLine := "━━"
+	if meta.Role != "" {
+		roleLine += " " + meta.Role + " "
+	}
+	if pad := contentW - lipgloss.Width(roleLine); pad > 0 {
+		roleLine += strings.Repeat("━", pad)
+	}
+	lines = append(lines, agentCardRoleStyle.Render(roleLine))
+
+	// 설명
+	if meta.Desc != "" {
+		lines = append(lines, "")
+		descLines := wrapText(meta.Desc, contentW)
+		lines = append(lines, descLines...)
+		lines = append(lines, "")
+	}
+
+	// 메타 정보 (model, color)
+	var metaParts []string
+	if meta.Model != "" {
+		metaParts = append(metaParts, "🧠 "+meta.Model)
+	}
+	if meta.Color != "" {
+		metaParts = append(metaParts, "🎨 "+meta.Color)
+	}
+	if len(metaParts) > 0 {
+		metaLine := lipgloss.NewStyle().Foreground(colorGreen).Render(strings.Join(metaParts, "   "))
+		lines = append(lines, metaLine)
+	}
+
+	content := strings.Join(lines, "\n")
+	// Width = width - borderW → 내부(padding+content) 폭 설정. 총 렌더 폭 = width.
+	return agentCardStyle.Width(width - borderW).Render(content)
+}
+
+// renderSkillCard는 개별 스킬 어빌리티 카드를 렌더링한다.
+// width는 카드 박스의 총 폭 (border 포함).
+func renderSkillCard(meta *parser.SkillMeta, width int) string {
+	var lines []string
+
+	borderW := skillCardStyle.GetHorizontalBorderSize()
+	paddingW := skillCardStyle.GetHorizontalFrameSize() - borderW
+	contentW := width - borderW - paddingW
+
+	// 타이틀 라인: ⚡ name      [category]
+	titlePart := skillCardTitleStyle.Render("⚡ " + meta.Name)
+	if meta.Category != "" {
+		tag := skillCardTagStyle.Render("[" + meta.Category + "]")
+		gap := contentW - lipgloss.Width(titlePart) - lipgloss.Width(tag)
+		if gap < 1 {
+			gap = 1
+		}
+		titlePart += strings.Repeat(" ", gap) + tag
+	}
+	lines = append(lines, titlePart)
+
+	// 구분선
+	sep := strings.Repeat("━", contentW)
+	lines = append(lines, lipgloss.NewStyle().Foreground(colorCyan).Render(sep))
+
+	// 설명
+	if meta.Desc != "" {
+		lines = append(lines, "")
+		descLines := wrapText(meta.Desc, contentW)
+		lines = append(lines, descLines...)
+		lines = append(lines, "")
+	}
+
+	// 태그
+	if meta.Tags != "" {
+		tagLine := lipgloss.NewStyle().Foreground(colorGreen).Render("🎯 " + meta.Tags)
+		lines = append(lines, tagLine)
+	}
+
+	content := strings.Join(lines, "\n")
+	return skillCardStyle.Width(width - borderW).Render(content)
+}
+
+// wrapText는 텍스트를 주어진 폭에 맞게 줄바꿈한다.
+func wrapText(text string, width int) []string {
+	if width <= 0 {
+		return []string{text}
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return nil
+	}
+
+	var lines []string
+	current := words[0]
+
+	for _, word := range words[1:] {
+		test := current + " " + word
+		if lipgloss.Width(test) <= width {
+			current = test
+		} else {
+			lines = append(lines, current)
+			current = word
+		}
+	}
+	lines = append(lines, current)
+	return lines
 }

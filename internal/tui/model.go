@@ -286,7 +286,8 @@ func (m *Model) renderMergeView(width, height int) string {
 		}
 	}
 
-	style := panelStyleFor(m.focus == PanePreview).Width(width).Height(height)
+	base := panelStyleFor(m.focus == PanePreview)
+	style := base.Width(width - base.GetHorizontalBorderSize()).Height(height)
 	availWidth := width - style.GetHorizontalFrameSize()
 	truncated := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
 
@@ -366,12 +367,14 @@ func (m *Model) toggleFocus() {
 
 func (m *Model) syncPreview() {
 	m.preview.SetFile(m.tree.SelectedFile())
+	m.preview.PrepareCardContent(m.previewWidth())
 }
 
 func (m *Model) updateLayout() {
 	h := m.contentHeight()
 	m.tree.SetHeight(h)
 	m.preview.SetHeight(h)
+	m.preview.PrepareCardContent(m.previewWidth())
 	m.ranking.SetHeight(h - 3) // 탭바 + 범위바 + 구분선
 }
 

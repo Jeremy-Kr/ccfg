@@ -66,6 +66,22 @@ var (
 	hudKey      = lipgloss.NewStyle().Bold(true).Foreground(colorYellow)
 	hudDesc     = lipgloss.NewStyle().Foreground(colorDimGray)
 	hudSep      = lipgloss.NewStyle().Foreground(colorOrange)
+
+	// 에이전트 캐릭터 카드 스타일
+	agentCardStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colorOrange).
+			Padding(0, 1)
+	agentCardTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorYellow)
+	agentCardRoleStyle  = lipgloss.NewStyle().Foreground(colorOrange)
+
+	// 스킬 어빌리티 카드 스타일
+	skillCardStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colorCyan).
+			Padding(0, 1)
+	skillCardTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorCyan)
+	skillCardTagStyle   = lipgloss.NewStyle().Foreground(colorMagenta)
 )
 
 // 등급별 색상
