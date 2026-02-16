@@ -12,7 +12,7 @@ import (
 // 실패하면 원본 텍스트를 반환한다.
 func FormatJSON(raw string) string {
 	// JSONC → JSON 변환 (주석, trailing comma 제거)
-	cleaned := stripJSONC(raw)
+	cleaned := StripJSONC(raw)
 
 	// pretty-print
 	var parsed any
@@ -40,7 +40,7 @@ func highlightJSON(src string) string {
 }
 
 // stripJSONC는 JSONC의 주석과 trailing comma를 제거한다.
-func stripJSONC(s string) string {
+func StripJSONC(s string) string {
 	var result strings.Builder
 	runes := []rune(s)
 	i := 0

@@ -38,9 +38,9 @@ func TestStripJSONC(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := stripJSONC(tt.input)
+			got := StripJSONC(tt.input)
 			if !strings.Contains(got, tt.want) {
-				t.Errorf("stripJSONC 결과에 %q가 없음\ngot: %s", tt.want, got)
+				t.Errorf("StripJSONC 결과에 %q가 없음\ngot: %s", tt.want, got)
 			}
 		})
 	}
