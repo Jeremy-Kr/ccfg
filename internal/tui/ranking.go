@@ -234,14 +234,10 @@ func (r *RankingModel) renderScopeBar(width int) string {
 }
 
 func (r *RankingModel) renderEntry(rank int, entry usage.RankEntry, barWidth int, selected bool) string {
-	// 순위
-	rankStr := fmt.Sprintf("%2d.", rank)
-
-	// 등급 배지
 	gs := gradeStyle(entry.Grade)
-	badge := gs.Render(fmt.Sprintf("[%s]", entry.Grade))
 
-	// 이름 (15자 고정폭)
+	rankStr := fmt.Sprintf("%2d.", rank)
+	badge := fmt.Sprintf("[%-3s]", entry.Grade)
 	name := entry.Name
 	if len(name) > 15 {
 		name = name[:14] + "…"
@@ -251,7 +247,6 @@ func (r *RankingModel) renderEntry(rank int, entry usage.RankEntry, barWidth int
 		namePad = 0
 	}
 
-	// 프로그레스 바
 	filled := int(entry.LogScore * float64(barWidth))
 	if filled < 1 && entry.Count > 0 {
 		filled = 1
@@ -260,14 +255,18 @@ func (r *RankingModel) renderEntry(rank int, entry usage.RankEntry, barWidth int
 	if empty < 0 {
 		empty = 0
 	}
-	bar := gs.Render(strings.Repeat("█", filled)) +
-		lipgloss.NewStyle().Foreground(lipgloss.Color("#333333")).Render(strings.Repeat("░", empty))
-
-	line := fmt.Sprintf(" %s %s %s%s %s %d",
-		rankStr, badge, name, strings.Repeat(" ", namePad), bar, entry.Count)
 
 	if selected {
-		return lipgloss.NewStyle().Bold(true).Foreground(colorYellow).Render(line)
+		// 선택된 항목: 배경색으로 확실하게 표시
+		sel := lipgloss.NewStyle().Bold(true).Foreground(colorYellow).Background(lipgloss.Color("#333333"))
+		bar := sel.Render(strings.Repeat("█", filled)) +
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#555555")).Background(lipgloss.Color("#333333")).Render(strings.Repeat("░", empty))
+		return sel.Render(fmt.Sprintf(" %s %s %s%s ", rankStr, badge, name, strings.Repeat(" ", namePad))) +
+			bar + sel.Render(fmt.Sprintf(" %d", entry.Count))
 	}
-	return line
+
+	bar := gs.Render(strings.Repeat("█", filled)) +
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#333333")).Render(strings.Repeat("░", empty))
+	return fmt.Sprintf(" %s %s %s%s %s %d",
+		rankStr, gs.Render(badge), name, strings.Repeat(" ", namePad), bar, entry.Count)
 }
