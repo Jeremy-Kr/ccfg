@@ -258,9 +258,9 @@ func (t *TreeModel) View(width int, focused bool) string {
 		}
 	}
 
-	style := panelStyle.Width(width)
+	style := panelStyle.Width(width).Height(t.height)
 	if focused {
-		style = panelFocusedStyle.Width(width)
+		style = panelFocusedStyle.Width(width).Height(t.height)
 	}
 
 	return style.Render(b.String())

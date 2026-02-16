@@ -155,10 +155,10 @@ func (p *PreviewModel) View(width int, focused bool) string {
 		}
 	}
 
-	// 남는 행 채우기 — 패널 높이 맞춤
-	style := panelStyle.Width(width)
+	// 패널 높이 고정 — 내용이 길어도 패널이 커지지 않도록
+	style := panelStyle.Width(width).Height(p.height)
 	if focused {
-		style = panelFocusedStyle.Width(width)
+		style = panelFocusedStyle.Width(width).Height(p.height)
 	}
 
 	return style.Render(b.String())

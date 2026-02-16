@@ -221,9 +221,9 @@ func (m *Model) renderMergeView(width, height int) string {
 		}
 	}
 
-	style := panelStyle.Width(width)
+	style := panelStyle.Width(width).Height(height)
 	if m.focus == PanePreview {
-		style = panelFocusedStyle.Width(width)
+		style = panelFocusedStyle.Width(width).Height(height)
 	}
 	return style.Render(b.String())
 }
