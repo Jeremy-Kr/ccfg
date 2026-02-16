@@ -240,10 +240,6 @@ func (t *TreeModel) View(width int, focused bool) string {
 	for i := t.offset; i < end; i++ {
 		node := visible[i]
 		line := t.renderNode(node, i == t.cursor, focused)
-		// 너비에 맞게 자르기
-		if lipgloss.Width(line) > width {
-			line = line[:width]
-		}
 		b.WriteString(line)
 		if i < end-1 {
 			b.WriteString("\n")
@@ -263,7 +259,10 @@ func (t *TreeModel) View(width int, focused bool) string {
 		style = panelFocusedStyle.Width(width).Height(t.height)
 	}
 
-	return style.Render(b.String())
+	availWidth := width - style.GetHorizontalFrameSize()
+	content := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
+
+	return style.Render(content)
 }
 
 func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {

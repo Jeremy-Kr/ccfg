@@ -225,7 +225,11 @@ func (m *Model) renderMergeView(width, height int) string {
 	if m.focus == PanePreview {
 		style = panelFocusedStyle.Width(width).Height(height)
 	}
-	return style.Render(b.String())
+
+	availWidth := width - style.GetHorizontalFrameSize()
+	truncated := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
+
+	return style.Render(truncated)
 }
 
 func (m *Model) toggleFocus() {

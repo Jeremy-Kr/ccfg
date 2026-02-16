@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/jeremy-kr/ccfg/internal/model"
 	"github.com/jeremy-kr/ccfg/internal/parser"
 )
@@ -155,11 +156,15 @@ func (p *PreviewModel) View(width int, focused bool) string {
 		}
 	}
 
-	// 패널 높이 고정 — 내용이 길어도 패널이 커지지 않도록
+	// 패널 높이 고정 + 줄바꿈 방지
 	style := panelStyle.Width(width).Height(p.height)
 	if focused {
 		style = panelFocusedStyle.Width(width).Height(p.height)
 	}
 
-	return style.Render(b.String())
+	// 패널 내부 가용 폭으로 각 줄 잘라내기 (터미널 줄바꿈 방지)
+	availWidth := width - style.GetHorizontalFrameSize()
+	content := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
+
+	return style.Render(content)
 }
