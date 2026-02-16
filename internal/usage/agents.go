@@ -10,10 +10,27 @@ import (
 	"strings"
 )
 
-// transcriptLine는 transcript JSONL에서 필요한 필드만 파싱한다.
-type transcriptLine struct {
+// opencodeLine는 opencode 형식의 transcript JSONL을 파싱한다.
+// 형식: {"type":"tool_use", "tool_name":"task", "tool_input":{...}}
+type opencodeLine struct {
 	ToolName  string          `json:"tool_name"`
 	ToolInput json.RawMessage `json:"tool_input"`
+}
+
+// claudeCodeLine는 Claude Code 형식의 transcript JSONL을 파싱한다.
+// 형식: {"type":"assistant", "message":{"content":[{"type":"tool_use","name":"Task","input":{...}}]}}
+type claudeCodeLine struct {
+	Type    string `json:"type"`
+	Message struct {
+		Content json.RawMessage `json:"content"`
+	} `json:"message"`
+}
+
+// contentBlock는 Claude Code의 content 배열 요소이다.
+type contentBlock struct {
+	Type  string          `json:"type"`
+	Name  string          `json:"name"`
+	Input json.RawMessage `json:"input"`
 }
 
 // agentInput은 task/delegate_task의 tool_input에서 subagent_type을 추출한다.
@@ -27,32 +44,83 @@ func collectAgents(homeDir, projectFilter string) (map[string]int, error) {
 }
 
 func extractAgent(line []byte) (name string, ok bool) {
-	if !bytes.Contains(line, []byte(`"subagent_type"`)) {
+	if !bytes.Contains(line, []byte(`subagent_type`)) {
 		return "", false
 	}
-	var tl transcriptLine
-	if err := json.Unmarshal(line, &tl); err != nil {
+
+	// opencode 형식
+	if bytes.Contains(line, []byte(`"tool_name"`)) {
+		var ol opencodeLine
+		if err := json.Unmarshal(line, &ol); err == nil {
+			if ol.ToolName == "task" || ol.ToolName == "delegate_task" {
+				var input agentInput
+				if err := json.Unmarshal(ol.ToolInput, &input); err == nil && input.SubagentType != "" {
+					return input.SubagentType, true
+				}
+			}
+		}
+	}
+
+	// Claude Code 형식
+	if bytes.Contains(line, []byte(`"assistant"`)) {
+		return extractFromClaudeCode(line, func(block contentBlock) (string, bool) {
+			if !strings.EqualFold(block.Name, "task") {
+				return "", false
+			}
+			var input agentInput
+			if err := json.Unmarshal(block.Input, &input); err == nil && input.SubagentType != "" {
+				return input.SubagentType, true
+			}
+			return "", false
+		})
+	}
+
+	return "", false
+}
+
+// extractFromClaudeCode는 Claude Code 형식의 assistant 메시지에서 tool_use 블록을 순회한다.
+func extractFromClaudeCode(line []byte, match func(contentBlock) (string, bool)) (string, bool) {
+	var cl claudeCodeLine
+	if err := json.Unmarshal(line, &cl); err != nil || cl.Type != "assistant" {
 		return "", false
 	}
-	if tl.ToolName != "task" && tl.ToolName != "delegate_task" {
+
+	var blocks []contentBlock
+	if err := json.Unmarshal(cl.Message.Content, &blocks); err != nil {
 		return "", false
 	}
-	var input agentInput
-	if err := json.Unmarshal(tl.ToolInput, &input); err != nil || input.SubagentType == "" {
-		return "", false
+
+	for _, block := range blocks {
+		if block.Type != "tool_use" {
+			continue
+		}
+		if name, ok := match(block); ok {
+			return name, true
+		}
 	}
-	return input.SubagentType, true
+	return "", false
 }
 
 // transcriptDirs는 스캔 대상 transcript 디렉토리 목록을 반환한다.
 func transcriptDirs(homeDir, projectFilter string) []string {
 	if projectFilter != "" {
-		// 프로젝트별 transcript: ~/.claude/projects/{encoded-path}/*.jsonl
 		encoded := encodeProjectPath(projectFilter)
 		return []string{filepath.Join(homeDir, ".claude", "projects", encoded)}
 	}
-	// 전체: ~/.claude/transcripts/
-	return []string{filepath.Join(homeDir, ".claude", "transcripts")}
+
+	// 전체 범위: transcripts/ + projects/의 모든 하위 디렉토리
+	dirs := []string{filepath.Join(homeDir, ".claude", "transcripts")}
+
+	projectsBase := filepath.Join(homeDir, ".claude", "projects")
+	entries, err := os.ReadDir(projectsBase)
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				dirs = append(dirs, filepath.Join(projectsBase, entry.Name()))
+			}
+		}
+	}
+	return dirs
 }
 
 // encodeProjectPath는 프로젝트 경로를 Claude의 디렉토리 인코딩 형식으로 변환한다.

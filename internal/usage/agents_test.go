@@ -1,12 +1,13 @@
 package usage
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestCollectAgents(t *testing.T) {
+func TestCollectAgents_Opencode(t *testing.T) {
 	home := t.TempDir()
 	dir := filepath.Join(home, ".claude", "transcripts")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -18,7 +19,6 @@ func TestCollectAgents(t *testing.T) {
 		`{"type":"tool_use","tool_name":"task","tool_input":{"subagent_type":"explore","prompt":"search"}}`,
 		`{"type":"tool_use","tool_name":"delegate_task","tool_input":{"subagent_type":"librarian","prompt":"research"}}`,
 		`{"type":"tool_use","tool_name":"Read","tool_input":{"path":"foo.go"}}`,
-		`{"type":"tool_use","tool_name":"skill","tool_input":{"name":"git-master"}}`,
 	}
 	writeJSONL(t, filepath.Join(dir, "test.jsonl"), lines)
 
@@ -32,22 +32,49 @@ func TestCollectAgents(t *testing.T) {
 	if counts["librarian"] != 1 {
 		t.Errorf("librarian: got %d, want 1", counts["librarian"])
 	}
-	// Read와 skill은 에이전트가 아님
 	if counts["Read"] != 0 {
 		t.Errorf("Read should not be counted as agent")
 	}
 }
 
+func TestCollectAgents_ClaudeCode(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".claude", "projects", "-project-bar")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Claude Code 형식: assistant 메시지 안의 tool_use 블록
+	lines := []string{
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"explore","prompt":"search"}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"code-reviewer","prompt":"review"}},{"type":"text","text":"reviewing..."}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"foo.go"}}]}}`,
+		`{"type":"user","message":"hello"}`,
+	}
+	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
+
+	// All 범위에서 projects/ 하위도 스캔되는지 확인
+	counts, err := collectAgents(home, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["explore"] != 1 {
+		t.Errorf("explore: got %d, want 1", counts["explore"])
+	}
+	if counts["code-reviewer"] != 1 {
+		t.Errorf("code-reviewer: got %d, want 1", counts["code-reviewer"])
+	}
+}
+
 func TestCollectAgents_ProjectScope(t *testing.T) {
 	home := t.TempDir()
-	// 프로젝트별 transcript 디렉토리
 	projDir := filepath.Join(home, ".claude", "projects", "-project-foo")
 	if err := os.MkdirAll(projDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	lines := []string{
-		`{"type":"tool_use","tool_name":"task","tool_input":{"subagent_type":"code-reviewer","prompt":"review"}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"code-reviewer","prompt":"review"}}]}}`,
 	}
 	writeJSONL(t, filepath.Join(projDir, "session.jsonl"), lines)
 
@@ -60,23 +87,7 @@ func TestCollectAgents_ProjectScope(t *testing.T) {
 	}
 }
 
-func TestEncodeProjectPath(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"/Users/jeremy/code/ccfg", "-Users-jeremy-code-ccfg"},
-		{"/project/foo", "-project-foo"},
-	}
-	for _, tt := range tests {
-		got := encodeProjectPath(tt.input)
-		if got != tt.want {
-			t.Errorf("encodeProjectPath(%q) = %q, want %q", tt.input, got, tt.want)
-		}
-	}
-}
-
-func TestCollectSkills(t *testing.T) {
+func TestCollectSkills_Opencode(t *testing.T) {
 	home := t.TempDir()
 	dir := filepath.Join(home, ".claude", "transcripts")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -101,9 +112,123 @@ func TestCollectSkills(t *testing.T) {
 	if counts["commit"] != 1 {
 		t.Errorf("commit: got %d, want 1", counts["commit"])
 	}
-	// task는 스킬이 아님
 	if counts["explore"] != 0 {
 		t.Errorf("explore should not be counted as skill")
+	}
+}
+
+func TestCollectSkills_ClaudeCode(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".claude", "projects", "-project-bar")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := []string{
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"commit"}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"commit"}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"explore"}}]}}`,
+	}
+	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
+
+	counts, err := collectSkills(home, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["commit"] != 2 {
+		t.Errorf("commit: got %d, want 2", counts["commit"])
+	}
+	if counts["explore"] != 0 {
+		t.Errorf("explore should not be counted as skill")
+	}
+}
+
+func TestCollectTools_ClaudeCode(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".claude", "projects", "-project-baz")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// 한 assistant 줄에 여러 tool_use 블록
+	lines := []string{
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"a.go"}},{"type":"tool_use","name":"Read","input":{"file_path":"b.go"}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"go test"}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}`,
+	}
+	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
+
+	counts, err := collectTools(home, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["Read"] != 2 {
+		t.Errorf("Read: got %d, want 2", counts["Read"])
+	}
+	if counts["Bash"] != 1 {
+		t.Errorf("Bash: got %d, want 1", counts["Bash"])
+	}
+}
+
+func TestEncodeProjectPath(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"/Users/jeremy/code/ccfg", "-Users-jeremy-code-ccfg"},
+		{"/project/foo", "-project-foo"},
+	}
+	for _, tt := range tests {
+		got := encodeProjectPath(tt.input)
+		if got != tt.want {
+			t.Errorf("encodeProjectPath(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestTranscriptDirs_AllScope(t *testing.T) {
+	home := t.TempDir()
+
+	// transcripts/ 와 projects/ 둘 다 생성
+	os.MkdirAll(filepath.Join(home, ".claude", "transcripts"), 0o755)
+	os.MkdirAll(filepath.Join(home, ".claude", "projects", "-proj-a"), 0o755)
+	os.MkdirAll(filepath.Join(home, ".claude", "projects", "-proj-b"), 0o755)
+
+	dirs := transcriptDirs(home, "")
+	if len(dirs) != 3 {
+		t.Errorf("expected 3 dirs (transcripts + 2 projects), got %d: %v", len(dirs), dirs)
+	}
+}
+
+func TestCollectTools_SessionMeta(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".claude", "usage-data", "session-meta")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	writeMeta(t, dir, "s1.json", sessionMeta{
+		ProjectPath: "/project/a",
+		ToolCounts:  map[string]int{"Read": 10, "Bash": 5},
+	})
+
+	counts, err := collectTools(home, "/project/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["Read"] != 10 {
+		t.Errorf("Read: got %d, want 10", counts["Read"])
+	}
+}
+
+func writeMeta(t *testing.T, dir, name string, meta sessionMeta) {
+	t.Helper()
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 
