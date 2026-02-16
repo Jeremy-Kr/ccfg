@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/jeremy-kr/ccfg/internal/model"
+	"github.com/jeremy-kr/ccfg/internal/parser"
 )
 
 // Scanner는 Claude Code 설정 파일을 탐색한다.
@@ -78,6 +80,16 @@ func scanEntries(base string, entries []FileEntry, scope model.Scope) []model.Co
 			if e.IsDir && info.IsDir() {
 				cf.Children = scanDir(absPath, scope, e.Category)
 			}
+
+			// settings.json → hooks + mcpServers 가상 Children
+			if cf.Category == model.CategorySettings && !cf.IsDir {
+				cf.Children = parseSettingsSections(absPath, scope)
+			}
+
+			// .mcp.json → 서버 목록 가상 Children
+			if cf.Category == model.CategoryMCP && !cf.IsDir {
+				cf.Children = parseMCPSections(absPath, scope)
+			}
 		}
 
 		files = append(files, cf)
@@ -126,6 +138,107 @@ func scanDir(dir string, scope model.Scope, category model.ConfigCategory) []mod
 		children = append(children, cf)
 	}
 	return children
+}
+
+// parseSettingsSections는 settings.json에서 hooks와 mcpServers를 파싱하여 가상 Children을 생성한다.
+func parseSettingsSections(path string, scope model.Scope) []model.ConfigFile {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	raw := string(data)
+
+	var children []model.ConfigFile
+
+	// hooks 파싱
+	hooks := parser.ParseSettingsHooks(raw)
+	if len(hooks) > 0 {
+		sort.Slice(hooks, func(i, j int) bool {
+			return hooks[i].Event < hooks[j].Event
+		})
+		var hookChildren []model.ConfigFile
+		for _, h := range hooks {
+			hookChildren = append(hookChildren, model.ConfigFile{
+				Path:        path + "#hooks." + h.Event,
+				Scope:       scope,
+				FileType:    model.FileTypeJSON,
+				Category:    model.CategoryHooks,
+				Exists:      true,
+				IsVirtual:   true,
+				Description: h.Event,
+			})
+		}
+		children = append(children, model.ConfigFile{
+			Path:        path + "#hooks",
+			Scope:       scope,
+			FileType:    model.FileTypeJSON,
+			Category:    model.CategoryHooks,
+			Exists:      true,
+			IsDir:       true,
+			IsVirtual:   true,
+			Description: fmt.Sprintf("Hooks (%d)", len(hooks)),
+			Children:    hookChildren,
+		})
+	}
+
+	// mcpServers 파싱
+	if mcpGroup := buildMCPServerGroup(path, scope, raw); mcpGroup != nil {
+		children = append(children, *mcpGroup)
+	}
+
+	return children
+}
+
+// parseMCPSections는 .mcp.json에서 서버 목록을 파싱하여 가상 Children을 생성한다.
+func parseMCPSections(path string, scope model.Scope) []model.ConfigFile {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	group := buildMCPServerGroup(path, scope, string(data))
+	if group == nil {
+		return nil
+	}
+	return group.Children
+}
+
+// buildMCPServerGroup은 JSON 원본에서 mcpServers를 파싱하여 가상 그룹 노드를 생성한다.
+// 서버가 없으면 nil을 반환한다.
+func buildMCPServerGroup(path string, scope model.Scope, raw string) *model.ConfigFile {
+	servers := parser.ParseMCPServers(raw)
+	if len(servers) == 0 {
+		return nil
+	}
+
+	sort.Slice(servers, func(i, j int) bool {
+		return servers[i].Name < servers[j].Name
+	})
+
+	children := make([]model.ConfigFile, 0, len(servers))
+	for _, s := range servers {
+		children = append(children, model.ConfigFile{
+			Path:        path + "#mcpServers." + s.Name,
+			Scope:       scope,
+			FileType:    model.FileTypeJSON,
+			Category:    model.CategoryMCP,
+			Exists:      true,
+			IsVirtual:   true,
+			Description: s.Name,
+		})
+	}
+
+	return &model.ConfigFile{
+		Path:        path + "#mcpServers",
+		Scope:       scope,
+		FileType:    model.FileTypeJSON,
+		Category:    model.CategoryMCP,
+		Exists:      true,
+		IsDir:       true,
+		IsVirtual:   true,
+		Description: fmt.Sprintf("MCP Servers (%d)", len(servers)),
+		Children:    children,
+	}
 }
 
 // detectFileType은 파일 경로의 확장자로 FileType을 판별한다.
