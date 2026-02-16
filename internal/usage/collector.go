@@ -1,6 +1,9 @@
 package usage
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Collector는 Claude Code 사용 데이터를 수집한다.
 type Collector struct {
@@ -31,8 +34,48 @@ func (c *Collector) Collect(scope DataScope) (*UsageData, error) {
 	}
 
 	return &UsageData{
-		Tools:  Rank(toolCounts),
-		Agents: Rank(agentCounts),
-		Skills: Rank(skillCounts),
+		Tools:  Rank(normalizeCounts(toolCounts)),
+		Agents: Rank(normalizeCounts(agentCounts)),
+		Skills: Rank(normalizeCounts(skillCounts)),
 	}, nil
+}
+
+// normalizeMap은 opencode 소문자 이름을 Claude Code PascalCase로 매핑한다.
+var normalizeMap = map[string]string{
+	// 도구
+	"bash":         "Bash",
+	"read":         "Read",
+	"edit":         "Edit",
+	"write":        "Write",
+	"glob":         "Glob",
+	"grep":         "Grep",
+	"task":         "Task",
+	"skill":        "Skill",
+	"websearch":    "WebSearch",
+	"todowrite":    "TodoWrite",
+	"todoread":     "TodoRead",
+	"question":     "AskUserQuestion",
+	"slashcommand": "Skill",
+	// 에이전트
+	"explore": "Explore",
+	"plan":    "Plan",
+}
+
+// normalizeCounts는 동일한 도구/에이전트의 대소문자 변형을 통합한다.
+func normalizeCounts(counts map[string]int) map[string]int {
+	if len(counts) == 0 {
+		return counts
+	}
+
+	result := make(map[string]int, len(counts))
+	for name, count := range counts {
+		canonical := name
+		if mapped, ok := normalizeMap[name]; ok {
+			canonical = mapped
+		} else if mapped, ok := normalizeMap[strings.ToLower(name)]; ok {
+			canonical = mapped
+		}
+		result[canonical] += count
+	}
+	return result
 }
