@@ -54,6 +54,9 @@ const (
 	CategoryInstructions                       // 지시사항 (CLAUDE.md 계열)
 	CategoryMCP                                // MCP 서버 설정
 	CategoryPolicy                             // 관리자 정책
+	CategoryCommands                           // 커스텀 슬래시 명령어
+	CategorySkills                             // 에이전트 스킬
+	CategoryKeybindings                        // 키바인딩 설정
 )
 
 func (c ConfigCategory) String() string {
@@ -66,6 +69,12 @@ func (c ConfigCategory) String() string {
 		return "MCP"
 	case CategoryPolicy:
 		return "Policy"
+	case CategoryCommands:
+		return "Commands"
+	case CategorySkills:
+		return "Skills"
+	case CategoryKeybindings:
+		return "Keybindings"
 	default:
 		return "Unknown"
 	}
@@ -78,9 +87,11 @@ type ConfigFile struct {
 	FileType    FileType       // 파일 형식
 	Category    ConfigCategory // 기능별 분류
 	Exists      bool           // 파일 존재 여부
+	IsDir       bool           // 디렉토리 여부 (commands/, skills/)
 	Size        int64          // 바이트 크기 (존재 시)
 	ModTime     time.Time      // 최종 수정 시간 (존재 시)
 	Description string         // 사용자에게 보여줄 설명
+	Children    []ConfigFile   // 디렉토리인 경우 하위 파일들
 }
 
 // ScanResult는 전체 스캔 결과를 나타낸다.

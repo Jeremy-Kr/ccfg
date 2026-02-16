@@ -13,6 +13,7 @@ type FileEntry struct {
 	RelPath     string               // 기준 디렉토리로부터의 상대 경로
 	Description string               // 사용자에게 보여줄 설명
 	Category    model.ConfigCategory // 기능별 분류
+	IsDir       bool                 // 디렉토리 스캔 여부
 }
 
 // GetUserHomeDir는 현재 사용자의 홈 디렉토리를 반환한다.
@@ -55,6 +56,9 @@ func UserPaths() (string, []FileEntry) {
 		{RelPath: ".claude.json", Description: "레거시 전역 설정", Category: model.CategorySettings},
 		{RelPath: filepath.Join(".claude", "CLAUDE.md"), Description: "사용자 전역 지시사항", Category: model.CategoryInstructions},
 		{RelPath: ".mcp.json", Description: "MCP 서버 전역 설정", Category: model.CategoryMCP},
+		{RelPath: filepath.Join(".claude", "commands"), Description: "커스텀 명령어", Category: model.CategoryCommands, IsDir: true},
+		{RelPath: filepath.Join(".claude", "skills"), Description: "에이전트 스킬", Category: model.CategorySkills, IsDir: true},
+		{RelPath: filepath.Join(".claude", "keybindings.json"), Description: "키바인딩 설정", Category: model.CategoryKeybindings},
 	}
 }
 
@@ -70,5 +74,7 @@ func ProjectPaths(root string) (string, []FileEntry) {
 		{RelPath: "CLAUDE.md", Description: "프로젝트 지시사항", Category: model.CategoryInstructions},
 		{RelPath: filepath.Join(".claude", "CLAUDE.md"), Description: "프로젝트 지시사항 (대체 위치)", Category: model.CategoryInstructions},
 		{RelPath: ".mcp.json", Description: "MCP 서버 프로젝트 설정", Category: model.CategoryMCP},
+		{RelPath: filepath.Join(".claude", "commands"), Description: "프로젝트 명령어", Category: model.CategoryCommands, IsDir: true},
+		{RelPath: filepath.Join(".claude", "skills"), Description: "프로젝트 스킬", Category: model.CategorySkills, IsDir: true},
 	}
 }
