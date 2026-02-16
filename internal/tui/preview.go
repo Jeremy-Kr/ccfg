@@ -80,27 +80,29 @@ func (p *PreviewModel) renderDir(file *model.ConfigFile) string {
 			return b.String()
 		}
 		for _, entry := range entries {
-			icon := "  📄 "
-			if entry.IsDir() {
-				icon = "  📁 "
-			}
-			b.WriteString(fmt.Sprintf("%s%s\n", icon, entry.Name()))
+			icon := dirIcon(entry.IsDir())
+			b.WriteString(fmt.Sprintf("  %s %s\n", icon, entry.Name()))
 		}
 	} else {
 		for _, child := range file.Children {
-			icon := "  📄 "
-			if child.IsDir {
-				icon = "  📁 "
-			}
+			icon := dirIcon(child.IsDir)
 			detail := ""
 			if child.Exists {
 				detail = fmt.Sprintf("  (%d bytes)", child.Size)
 			}
-			b.WriteString(fmt.Sprintf("%s%s%s\n", icon, child.Description, detail))
+			b.WriteString(fmt.Sprintf("  %s %s%s\n", icon, child.Description, detail))
 		}
 	}
 
 	return b.String()
+}
+
+// dirIcon은 디렉토리 여부에 따라 아이콘을 반환한다.
+func dirIcon(isDir bool) string {
+	if isDir {
+		return "📁"
+	}
+	return "📄"
 }
 
 // ScrollUp은 미리보기를 위로 스크롤한다.
@@ -135,12 +137,23 @@ func (p *PreviewModel) View(width int, focused bool) string {
 	if p.file == nil {
 		b.WriteString("파일을 선택하세요")
 	} else {
-		// 파일 정보 헤더
-		header := p.file.Path
-		if p.file.Exists {
-			header = fmt.Sprintf("%s  (%d bytes)", p.file.Path, p.file.Size)
+		// 파일 정보 헤더 (장식 라인)
+		icon := dirIcon(p.file.IsDir)
+		info := p.file.Path
+		if p.file.Exists && !p.file.IsDir {
+			info = fmt.Sprintf("%s (%d bytes)", p.file.Path, p.file.Size)
 		}
-		b.WriteString(headerStyle.Render(header))
+		label := fmt.Sprintf("[ %s %s ]", icon, info)
+		// 패널 내부 가용 폭에 맞춰 ━ 패딩
+		availW := width - panelStyle.GetHorizontalFrameSize()
+		pad := availW - lipgloss.Width(label)
+		if pad < 2 {
+			pad = 2
+		}
+		left := pad / 2
+		right := pad - left
+		decoratedHeader := strings.Repeat("━", left) + label + strings.Repeat("━", right)
+		b.WriteString(lipgloss.NewStyle().Foreground(colorCyan).Render(decoratedHeader))
 		b.WriteString("\n")
 
 		// 내용 표시
@@ -157,12 +170,7 @@ func (p *PreviewModel) View(width int, focused bool) string {
 	}
 
 	// 패널 높이 고정 + 줄바꿈 방지
-	style := panelStyle.Width(width).Height(p.height)
-	if focused {
-		style = panelFocusedStyle.Width(width).Height(p.height)
-	}
-
-	// 패널 내부 가용 폭으로 각 줄 잘라내기 (터미널 줄바꿈 방지)
+	style := panelStyleFor(focused).Width(width).Height(p.height)
 	availWidth := width - style.GetHorizontalFrameSize()
 	content := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
 

@@ -8,6 +8,28 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/model"
 )
 
+// Scope별 이모지와 색상
+var scopeStyle = map[model.Scope]struct {
+	emoji string
+	color lipgloss.Color
+}{
+	model.ScopeManaged: {"🔒", colorRed},
+	model.ScopeUser:    {"👤", colorGreen},
+	model.ScopeProject: {"📁", colorCyan},
+}
+
+// 카테고리별 이모지
+var categoryEmoji = map[model.ConfigCategory]string{
+	model.CategorySettings:    "⚙️ ",
+	model.CategoryInstructions: "📝",
+	model.CategoryMCP:          "🔧",
+	model.CategoryPolicy:       "🔑",
+	model.CategoryCommands:     "⌨️ ",
+	model.CategorySkills:       "🧠",
+	model.CategoryAgents:       "🤖",
+	model.CategoryKeybindings:  "🎮",
+}
+
 // TreeNode는 트리의 한 항목을 나타낸다.
 type TreeNode struct {
 	Label    string            // 표시 텍스트
@@ -139,6 +161,15 @@ func (t *TreeModel) SelectedFile() *model.ConfigFile {
 	return nil
 }
 
+// SelectedScope는 현재 커서가 가리키는 노드의 Scope를 반환한다.
+func (t *TreeModel) SelectedScope() model.Scope {
+	visible := t.visibleNodes()
+	if t.cursor >= 0 && t.cursor < len(visible) {
+		return visible[t.cursor].Scope
+	}
+	return model.ScopeUser
+}
+
 // MoveUp은 커서를 위로 이동한다.
 func (t *TreeModel) MoveUp() {
 	if t.cursor > 0 {
@@ -254,11 +285,7 @@ func (t *TreeModel) View(width int, focused bool) string {
 		}
 	}
 
-	style := panelStyle.Width(width).Height(t.height)
-	if focused {
-		style = panelFocusedStyle.Width(width).Height(t.height)
-	}
-
+	style := panelStyleFor(focused).Width(width).Height(t.height)
 	availWidth := width - style.GetHorizontalFrameSize()
 	content := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
 
@@ -268,49 +295,60 @@ func (t *TreeModel) View(width int, focused bool) string {
 func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 	if node.File == nil {
 		// Scope 헤더
-		arrow := "▸"
+		arrow := "▶"
 		for _, r := range t.roots {
 			if r.Label == node.Label && r.Expanded {
-				arrow = "▾"
+				arrow = "▼"
 				break
 			}
 		}
-		text := fmt.Sprintf("%s %s", arrow, node.Label)
+
+		ss, ok := scopeStyle[node.Scope]
+		if !ok {
+			ss = scopeStyle[model.ScopeUser]
+		}
+		text := fmt.Sprintf("%s %s %s", ss.emoji, arrow, strings.ToUpper(node.Label))
+		style := scopeHeaderStyle.Foreground(ss.color)
 		if selected && focused {
 			return treeSelectedStyle.Render(text)
 		}
-		return scopeHeaderStyle.Render(text)
+		return style.Render(text)
 	}
 
 	depth := nodeDepth(t.roots, node.File)
 	indent := strings.Repeat("  ", depth)
 
+	// 카테고리 이모지
+	emoji := ""
+	if e, ok := categoryEmoji[node.File.Category]; ok {
+		emoji = e + " "
+	}
+
 	// 디렉토리 노드 (펼침 가능)
 	if node.File.IsDir && len(node.Children) > 0 {
-		arrow := "▸"
+		arrow := "▶"
 		if node.Expanded {
-			arrow = "▾"
+			arrow = "▼"
 		}
 		count := fmt.Sprintf("(%d)", len(node.Children))
-		text := fmt.Sprintf("%s%s %s %s", indent, arrow, node.Label, count)
+		text := fmt.Sprintf("%s%s %s%s %s", indent, arrow, emoji, node.Label, count)
 		if selected && focused {
 			return treeSelectedStyle.Render(text)
 		}
-		if node.File.Exists {
-			return fileExistsStyle.Render(text)
-		}
-		return fileMissingStyle.Render(text)
+		return dirStyle.Render(text)
 	}
 
 	// 파일 노드
-	status := fileMissingStyle.Render("✗")
-	if node.File.Exists {
-		status = fileExistsStyle.Render("✓")
-	}
-	text := fmt.Sprintf("%s%s %s", indent, status, node.Label)
 	if selected && focused {
-		return treeSelectedStyle.Render(fmt.Sprintf("%s%s %s", indent, "›", node.Label))
+		text := fmt.Sprintf("%s▸ %s%s", indent, emoji, node.Label)
+		return treeSelectedStyle.Render(text)
 	}
+
+	status := fileMissingStyle.Render("○")
+	if node.File.Exists {
+		status = fileExistsStyle.Render("●")
+	}
+	text := fmt.Sprintf("%s%s %s%s", indent, status, emoji, node.Label)
 	return treeItemStyle.Render(text)
 }
 
