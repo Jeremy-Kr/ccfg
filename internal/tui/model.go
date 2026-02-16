@@ -2,13 +2,16 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jeremy-kr/ccfg/internal/merger"
 	"github.com/jeremy-kr/ccfg/internal/model"
+	"github.com/jeremy-kr/ccfg/internal/usage"
 )
 
 // Pane은 현재 포커스된 패널을 나타낸다.
@@ -23,32 +26,55 @@ const version = "0.1.0"
 
 // Model은 TUI 전체 상태를 관리한다.
 type Model struct {
-	scan       *model.ScanResult
-	tree       TreeModel
-	preview    PreviewModel
-	focus      Pane
-	width      int
-	height     int
-	ready      bool
-	searchMode bool
-	searchText string
-	mergeMode  bool
-	merged     *merger.MergedConfig
+	scan         *model.ScanResult
+	tree         TreeModel
+	preview      PreviewModel
+	focus        Pane
+	width        int
+	height       int
+	ready        bool
+	searchMode   bool
+	searchText   string
+	mergeMode    bool
+	merged       *merger.MergedConfig
+	rankingMode  bool
+	ranking      RankingModel
+	scanDuration time.Duration
 }
 
 // NewModel은 ScanResult로부터 TUI 모델을 생성한다.
-func NewModel(result *model.ScanResult) Model {
+func NewModel(result *model.ScanResult, scanDuration time.Duration) Model {
 	tree := NewTreeModel(result)
+	homeDir, _ := os.UserHomeDir()
 	m := Model{
-		scan:   result,
-		tree:   tree,
-		focus:  PaneTree,
-		merged: merger.Merge(result),
+		scan:         result,
+		tree:         tree,
+		focus:        PaneTree,
+		merged:       merger.Merge(result),
+		ranking:      NewRankingModel(&usage.Collector{HomeDir: homeDir, ProjectPath: result.RootDir}),
+		scanDuration: scanDuration,
 	}
 	if f := tree.SelectedFile(); f != nil {
 		m.preview.SetFile(f)
 	}
 	return m
+}
+
+// fileStats는 존재하는 파일 수와 전체 파일 수를 반환한다.
+func (m *Model) fileStats() (exist, total int) {
+	for _, f := range m.scan.All() {
+		total++
+		if f.Exists {
+			exist++
+		}
+		for _, c := range f.Children {
+			total++
+			if c.Exists {
+				exist++
+			}
+		}
+	}
+	return
 }
 
 func (m Model) Init() tea.Cmd {
@@ -70,6 +96,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateSearch(msg)
 		}
 
+		// 랭킹 모드
+		if m.rankingMode {
+			return m.updateRanking(msg)
+		}
+
 		switch {
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
@@ -81,6 +112,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keys.Merge):
 			m.mergeMode = !m.mergeMode
+			return m, nil
+
+		case key.Matches(msg, keys.Ranking):
+			m.rankingMode = true
+			m.mergeMode = false
+			m.ranking.Load()
 			return m, nil
 
 		case key.Matches(msg, keys.Tab):
@@ -168,19 +205,26 @@ func (m Model) View() string {
 		return "로딩 중..."
 	}
 
-	// 헤더
-	title := fmt.Sprintf("ccfg v%s — Claude Code Config Viewer", version)
-	if m.mergeMode {
-		title += "  [MERGED]"
+	// 랭킹 모드 — 풀스크린
+	if m.rankingMode {
+		return m.renderRankingView()
 	}
-	header := headerStyle.Render(title)
 
-	// 풋터
+	// 헤더 — 장식 라인
+	header := m.renderHeader()
+
+	// 풋터 — HUD 또는 검색바
 	var footer string
 	if m.searchMode {
-		footer = footerStyle.Render(fmt.Sprintf("🔍 /%s█  (Enter: 확인, Esc: 취소)", m.searchText))
+		searchBar := lipgloss.NewStyle().Foreground(colorMagenta).Render(
+			fmt.Sprintf("🔍 /%s█  (Enter: 확인, Esc: 취소)", m.searchText),
+		)
+		footer = footerStyle.Render(searchBar)
 	} else {
-		footer = footerStyle.Render(keys.helpLine())
+		existCount, totalCount := m.fileStats()
+		scopeName := m.tree.SelectedScope().String()
+		scanSec := m.scanDuration.Seconds()
+		footer = footerStyle.Render(renderHUD(existCount, totalCount, scopeName, scanSec))
 	}
 
 	// 메인 영역 치수
@@ -205,6 +249,26 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, header, main, footer)
 }
 
+func (m *Model) renderHeader() string {
+	subtitle := "Claude Code Config Viewer ⚡"
+	if m.rankingMode {
+		subtitle = lipgloss.NewStyle().Bold(true).Foreground(colorYellow).Render("🏆 RANKING VIEW 🏆")
+	} else if m.mergeMode {
+		subtitle = lipgloss.NewStyle().Bold(true).Foreground(colorMagenta).Render("⚡ MERGE VIEW ⚡")
+	}
+	title := fmt.Sprintf("⚡ CCFG v%s — %s", version, subtitle)
+
+	label := fmt.Sprintf("[ %s ]", title)
+	pad := m.width - lipgloss.Width(label)
+	if pad < 2 {
+		pad = 2
+	}
+	left := pad / 2
+	right := pad - left
+	line := strings.Repeat("═", left) + label + strings.Repeat("═", right)
+	return headerStyle.Render(line)
+}
+
 func (m *Model) renderMergeView(width, height int) string {
 	content := m.merged.Render()
 	lines := strings.Split(content, "\n")
@@ -221,15 +285,73 @@ func (m *Model) renderMergeView(width, height int) string {
 		}
 	}
 
-	style := panelStyle.Width(width).Height(height)
-	if m.focus == PanePreview {
-		style = panelFocusedStyle.Width(width).Height(height)
-	}
-
+	style := panelStyleFor(m.focus == PanePreview).Width(width).Height(height)
 	availWidth := width - style.GetHorizontalFrameSize()
 	truncated := lipgloss.NewStyle().MaxWidth(availWidth).Render(b.String())
 
 	return style.Render(truncated)
+}
+
+func (m Model) updateRanking(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, keys.Quit):
+		return m, tea.Quit
+	case msg.Type == tea.KeyEscape, key.Matches(msg, keys.Ranking):
+		m.rankingMode = false
+		return m, nil
+	case key.Matches(msg, keys.Up):
+		m.ranking.MoveUp()
+		return m, nil
+	case key.Matches(msg, keys.Down):
+		m.ranking.MoveDown()
+		return m, nil
+	case key.Matches(msg, keys.Tab):
+		m.ranking.NextTab()
+		return m, nil
+	case msg.Type == tea.KeyRunes:
+		switch string(msg.Runes) {
+		case "1":
+			m.ranking.SetTab(usage.RankAgents)
+		case "2":
+			m.ranking.SetTab(usage.RankTools)
+		case "3":
+			m.ranking.SetTab(usage.RankSkills)
+		case "s":
+			m.ranking.ToggleScope()
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m *Model) renderRankingView() string {
+	header := m.renderHeader()
+	contentH := m.contentHeight()
+	rankingContent := m.ranking.View(m.width-4, contentH)
+
+	// 랭킹 HUD
+	footer := footerStyle.Render(renderRankingHUD())
+
+	style := panelFocusedStyle.Width(m.width - 2).Height(contentH)
+	body := style.Render(rankingContent)
+
+	return lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+}
+
+func renderRankingHUD() string {
+	sep := hudSep.Render(" │ ")
+
+	nav := hudLabelNav.Render("[NAV]") + " " +
+		hudKey.Render("↑↓") + hudDesc.Render(" 이동  ") +
+		hudKey.Render("1/2/3") + hudDesc.Render(" 탭  ") +
+		hudKey.Render("⇥") + hudDesc.Render(" 다음 탭")
+
+	cmd := hudLabelCmd.Render("[CMD]") + " " +
+		hudKey.Render("s") + hudDesc.Render(" 범위  ") +
+		hudKey.Render("r/Esc") + hudDesc.Render(" 닫기  ") +
+		hudKey.Render("q") + hudDesc.Render(" 종료")
+
+	return nav + sep + cmd
 }
 
 func (m *Model) toggleFocus() {
