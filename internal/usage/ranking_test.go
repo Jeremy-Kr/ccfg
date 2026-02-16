@@ -46,7 +46,7 @@ func TestRank_SortedDescending(t *testing.T) {
 }
 
 func TestRank_GradeThresholds(t *testing.T) {
-	// max=1000, 각 항목의 logScore가 임계값 경계에 위치하도록 설계
+	// max=1000, each item's logScore is designed to sit near grade threshold boundaries
 	counts := map[string]int{
 		"max":  1000, // logScore = 1.0 → SSS
 		"low":  1,    // logScore ≈ 0.1 → D or F

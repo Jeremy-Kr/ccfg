@@ -80,7 +80,7 @@ func TestParseAgentMeta_NonExistentFile(t *testing.T) {
 }
 
 func TestParseAgentMeta_LongDescription(t *testing.T) {
-	long := strings.Repeat("가", 200) // 200자 한글
+	long := strings.Repeat("가", 200) // 200 multibyte Korean characters
 	content := `---
 name: test-agent
 description: "` + long + `"

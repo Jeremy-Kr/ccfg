@@ -9,20 +9,20 @@ func TestStripJSONC(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
-		want  string // 정리된 JSON의 핵심 내용
+		want  string // key content expected in the cleaned JSON
 	}{
 		{
-			name:  "한 줄 주석 제거",
+			name:  "strip single-line comment",
 			input: `{"key": "value" // 주석}`,
 			want:  `"key"`,
 		},
 		{
-			name:  "블록 주석 제거",
+			name:  "strip block comment",
 			input: `{"key": /* 주석 */ "value"}`,
 			want:  `"value"`,
 		},
 		{
-			name: "trailing comma 제거",
+			name: "strip trailing comma",
 			input: `{
 				"a": 1,
 				"b": 2,
@@ -30,7 +30,7 @@ func TestStripJSONC(t *testing.T) {
 			want: `"b": 2`,
 		},
 		{
-			name:  "문자열 내 슬래시 보존",
+			name:  "preserve slashes inside strings",
 			input: `{"url": "https://example.com"}`,
 			want:  `https://example.com`,
 		},
@@ -40,7 +40,7 @@ func TestStripJSONC(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := StripJSONC(tt.input)
 			if !strings.Contains(got, tt.want) {
-				t.Errorf("StripJSONC 결과에 %q가 없음\ngot: %s", tt.want, got)
+				t.Errorf("StripJSONC result missing %q\ngot: %s", tt.want, got)
 			}
 		})
 	}
@@ -50,13 +50,13 @@ func TestFormatJSON(t *testing.T) {
 	input := `{"name":"ccfg","version":"0.1.0"}`
 	result := FormatJSON(input)
 
-	// pretty-print 되었으면 개행이 있어야 함
+	// Pretty-printed output should contain newlines
 	if !strings.Contains(result, "\n") {
-		t.Error("FormatJSON이 pretty-print하지 않음")
+		t.Error("FormatJSON did not pretty-print the output")
 	}
-	// 핵심 값이 포함되어야 함
+	// Core value must be present
 	if !strings.Contains(result, "ccfg") {
-		t.Error("FormatJSON 결과에 'ccfg'가 없음")
+		t.Error("FormatJSON result missing 'ccfg'")
 	}
 }
 
@@ -69,7 +69,7 @@ func TestFormatJSONWithJSONC(t *testing.T) {
 	result := FormatJSON(input)
 
 	if !strings.Contains(result, "permissions") {
-		t.Error("JSONC 파싱 후 'permissions'가 없음")
+		t.Error("result missing 'permissions' after JSONC parsing")
 	}
 }
 
@@ -77,12 +77,12 @@ func TestFormatMarkdown(t *testing.T) {
 	input := "# Hello\n\nThis is **bold** text."
 	result := FormatMarkdown(input)
 
-	// 렌더링 되었으면 원본과 달라야 함
+	// Rendered output should differ from the raw input
 	if result == input {
-		t.Error("FormatMarkdown이 렌더링하지 않음")
+		t.Error("FormatMarkdown did not render the input")
 	}
-	// 핵심 텍스트가 포함되어야 함
+	// Core text must be present
 	if !strings.Contains(result, "Hello") {
-		t.Error("FormatMarkdown 결과에 'Hello'가 없음")
+		t.Error("FormatMarkdown result missing 'Hello'")
 	}
 }

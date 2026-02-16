@@ -33,7 +33,7 @@ func main() {
 	scanDuration := time.Since(start)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "스캔 실패: %v\n", err)
+		fmt.Fprintf(os.Stderr, "scan failed: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -41,7 +41,7 @@ func main() {
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "TUI 실행 실패: %v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to start TUI: %v\n", err)
 		os.Exit(1)
 	}
 }

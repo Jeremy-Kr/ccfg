@@ -24,7 +24,7 @@ func TestParseSettingsHooks(t *testing.T) {
 		t.Fatalf("expected 2 hook events, got %d", len(entries))
 	}
 
-	// 정렬해서 안정적인 테스트
+	// Sort for stable test assertions
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Event < entries[j].Event
 	})

@@ -10,21 +10,21 @@ import (
 
 const debounceDelay = 300 * time.Millisecond
 
-// FileChangedMsg는 감시 중인 파일이 변경되었음을 알린다.
+// FileChangedMsg signals that a watched file has changed.
 type FileChangedMsg struct{}
 
-// ErrorMsg는 파일 감시 중 에러가 발생했음을 알린다.
+// ErrorMsg signals that an error occurred during file watching.
 type ErrorMsg struct{ Err error }
 
-// Watcher는 fsnotify 기반 파일 감시자를 래핑한다.
+// Watcher wraps an fsnotify-based file watcher.
 type Watcher struct {
 	fsw  *fsnotify.Watcher
 	ch   chan tea.Msg
 	done chan struct{}
 }
 
-// New는 주어진 경로들을 감시하는 Watcher를 생성한다.
-// 존재하지 않는 경로는 무시한다.
+// New creates a Watcher that monitors the given paths.
+// Non-existent paths are silently ignored.
 func New(paths []string) (*Watcher, error) {
 	fsw, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -33,7 +33,7 @@ func New(paths []string) (*Watcher, error) {
 
 	for _, p := range paths {
 		if _, err := os.Stat(p); err != nil {
-			continue // 존재하지 않는 경로 무시
+			continue // skip non-existent paths
 		}
 		_ = fsw.Add(p)
 	}
@@ -47,7 +47,7 @@ func New(paths []string) (*Watcher, error) {
 	return w, nil
 }
 
-// loop는 fsnotify 이벤트를 수신하고 디바운싱 후 ch로 전달한다.
+// loop receives fsnotify events, debounces them, and forwards to ch.
 func (w *Watcher) loop() {
 	var timer *time.Timer
 
@@ -63,18 +63,18 @@ func (w *Watcher) loop() {
 			if !ok {
 				return
 			}
-			// 관심 있는 이벤트만 필터링
+			// Filter only relevant events
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) == 0 {
 				continue
 			}
-			// 디바운스: 타이머 리셋
+			// Debounce: reset the timer
 			if timer != nil {
 				timer.Stop()
 			}
 			timer = time.AfterFunc(debounceDelay, func() {
 				select {
 				case w.ch <- FileChangedMsg{}:
-				default: // non-blocking: 이미 메시지가 대기 중이면 스킵
+				default: // non-blocking: skip if a message is already pending
 				}
 			})
 
@@ -90,7 +90,7 @@ func (w *Watcher) loop() {
 	}
 }
 
-// WaitForChange는 다음 파일 변경 메시지를 기다리는 tea.Cmd를 반환한다.
+// WaitForChange returns a tea.Cmd that waits for the next file change message.
 func (w *Watcher) WaitForChange() tea.Cmd {
 	return func() tea.Msg {
 		msg, ok := <-w.ch
@@ -101,7 +101,7 @@ func (w *Watcher) WaitForChange() tea.Cmd {
 	}
 }
 
-// Close는 watcher를 종료하고 리소스를 정리한다.
+// Close shuts down the watcher and releases its resources.
 func (w *Watcher) Close() {
 	close(w.done)
 	w.fsw.Close()

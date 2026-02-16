@@ -10,15 +10,15 @@ import (
 	"strings"
 )
 
-// opencodeLine는 opencode 형식의 transcript JSONL을 파싱한다.
-// 형식: {"type":"tool_use", "tool_name":"task", "tool_input":{...}}
+// opencodeLine parses an opencode-format transcript JSONL line.
+// Format: {"type":"tool_use", "tool_name":"task", "tool_input":{...}}
 type opencodeLine struct {
 	ToolName  string          `json:"tool_name"`
 	ToolInput json.RawMessage `json:"tool_input"`
 }
 
-// claudeCodeLine는 Claude Code 형식의 transcript JSONL을 파싱한다.
-// 형식: {"type":"assistant", "message":{"content":[{"type":"tool_use","name":"Task","input":{...}}]}}
+// claudeCodeLine parses a Claude Code-format transcript JSONL line.
+// Format: {"type":"assistant", "message":{"content":[{"type":"tool_use","name":"Task","input":{...}}]}}
 type claudeCodeLine struct {
 	Type    string `json:"type"`
 	Message struct {
@@ -26,20 +26,20 @@ type claudeCodeLine struct {
 	} `json:"message"`
 }
 
-// contentBlock는 Claude Code의 content 배열 요소이다.
+// contentBlock represents an element in Claude Code's content array.
 type contentBlock struct {
 	Type  string          `json:"type"`
 	Name  string          `json:"name"`
 	Input json.RawMessage `json:"input"`
 }
 
-// agentInput은 task/delegate_task의 tool_input에서 subagent_type을 추출한다.
+// agentInput extracts the subagent_type from task/delegate_task tool_input.
 type agentInput struct {
 	SubagentType string `json:"subagent_type"`
 	Description  string `json:"description"`
 }
 
-// collectAgents는 transcript에서 에이전트별 호출 횟수를 집계한다.
+// collectAgents tallies agent invocations from transcripts.
 func collectAgents(homeDir, projectFilter string) (map[string]int, error) {
 	return collectFromTranscripts(homeDir, projectFilter, extractAgent)
 }
@@ -49,7 +49,7 @@ func extractAgent(line []byte) (name string, ok bool) {
 		return "", false
 	}
 
-	// opencode 형식
+	// opencode format
 	if bytes.Contains(line, []byte(`"tool_name"`)) {
 		var ol opencodeLine
 		if err := json.Unmarshal(line, &ol); err == nil {
@@ -64,7 +64,7 @@ func extractAgent(line []byte) (name string, ok bool) {
 		}
 	}
 
-	// Claude Code 형식
+	// Claude Code format
 	if bytes.Contains(line, []byte(`"assistant"`)) {
 		return extractFromClaudeCode(line, func(block contentBlock) (string, bool) {
 			if !strings.EqualFold(block.Name, "task") {
@@ -83,16 +83,16 @@ func extractAgent(line []byte) (name string, ok bool) {
 	return "", false
 }
 
-// toolAsAgent는 빌트인 인프라 서브에이전트로, 에이전트 랭킹에서 제외한다.
-// 도구와 이름이 겹치거나 범용적이라 커스텀 에이전트와 구분이 어려운 타입들.
+// toolAsAgent lists built-in infrastructure subagents excluded from agent rankings.
+// These overlap with tool names or are too generic to distinguish from custom agents.
 var toolAsAgent = map[string]bool{
 	"Bash": true, "bash": true,
 	"Explore": true, "explore": true,
 }
 
-// resolveAgentName은 서브에이전트 타입을 의미 있는 이름으로 변환한다.
-// - 도구명과 겹치는 에이전트는 빈 문자열 반환 (제외)
-// - general-purpose의 description에서 커스텀 에이전트 이름 추출
+// resolveAgentName converts a subagent type into a meaningful name.
+// Returns an empty string for agents that overlap with tool names (excluded).
+// Extracts custom agent names from the description of general-purpose agents.
 func resolveAgentName(input agentInput) string {
 	if toolAsAgent[input.SubagentType] {
 		return ""
@@ -102,21 +102,21 @@ func resolveAgentName(input agentInput) string {
 		return input.SubagentType
 	}
 
-	// "horner: coding-guidelines로 평가" → "horner"
+	// "horner: evaluate code" → "horner"
 	idx := strings.Index(input.Description, ":")
 	if idx <= 0 || idx > 30 {
 		return input.SubagentType
 	}
 
 	candidate := strings.TrimSpace(input.Description[:idx])
-	// 공백이 포함되면 이름이 아님 ("Agent #1: xxx" 같은 일회성 라벨 제외)
+	// Names with spaces are not agent names (exclude one-off labels like "Agent #1: xxx")
 	if strings.Contains(candidate, " ") {
 		return input.SubagentType
 	}
 	return candidate
 }
 
-// extractFromClaudeCode는 Claude Code 형식의 assistant 메시지에서 tool_use 블록을 순회한다.
+// extractFromClaudeCode iterates over tool_use blocks in a Claude Code assistant message.
 func extractFromClaudeCode(line []byte, match func(contentBlock) (string, bool)) (string, bool) {
 	var cl claudeCodeLine
 	if err := json.Unmarshal(line, &cl); err != nil || cl.Type != "assistant" {
@@ -139,14 +139,14 @@ func extractFromClaudeCode(line []byte, match func(contentBlock) (string, bool))
 	return "", false
 }
 
-// transcriptDirs는 스캔 대상 transcript 디렉토리 목록을 반환한다.
+// transcriptDirs returns the list of transcript directories to scan.
 func transcriptDirs(homeDir, projectFilter string) []string {
 	if projectFilter != "" {
 		encoded := encodeProjectPath(projectFilter)
 		return []string{filepath.Join(homeDir, ".claude", "projects", encoded)}
 	}
 
-	// 전체 범위: transcripts/ + projects/의 모든 하위 디렉토리
+	// All scope: transcripts/ + all subdirectories under projects/
 	dirs := []string{filepath.Join(homeDir, ".claude", "transcripts")}
 
 	projectsBase := filepath.Join(homeDir, ".claude", "projects")
@@ -161,15 +161,15 @@ func transcriptDirs(homeDir, projectFilter string) []string {
 	return dirs
 }
 
-// encodeProjectPath는 프로젝트 경로를 Claude의 디렉토리 인코딩 형식으로 변환한다.
-// 예: /Users/jeremy/code/ccfg → -Users-jeremy-code-ccfg
+// encodeProjectPath converts a project path to Claude's directory encoding format.
+// Example: /Users/jeremy/code/ccfg → -Users-jeremy-code-ccfg
 func encodeProjectPath(path string) string {
 	return strings.ReplaceAll(path, "/", "-")
 }
 
 type extractFunc func(line []byte) (name string, ok bool)
 
-// collectFromTranscripts는 transcript 파일들에서 extract 함수로 데이터를 수집한다.
+// collectFromTranscripts collects data from transcript files using the given extract function.
 func collectFromTranscripts(homeDir, projectFilter string, extract extractFunc) (map[string]int, error) {
 	dirs := transcriptDirs(homeDir, projectFilter)
 	counts := make(map[string]int)
@@ -181,14 +181,14 @@ func collectFromTranscripts(homeDir, projectFilter string, extract extractFunc) 
 	return counts, nil
 }
 
-// scanTranscripts는 디렉토리 내 JSONL 파일을 스캔하며 extract 함수로 데이터를 추출한다.
+// scanTranscripts scans JSONL files in a directory and extracts data using the extract function.
 func scanTranscripts(dir string, counts map[string]int, extract extractFunc) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("transcript 디렉토리 읽기 실패: %w", err)
+		return fmt.Errorf("failed to read transcript directory: %w", err)
 	}
 
 	for _, entry := range entries {

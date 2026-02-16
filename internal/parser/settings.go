@@ -2,21 +2,21 @@ package parser
 
 import "encoding/json"
 
-// HookEntry는 settings.json의 hooks 내 개별 이벤트를 나타낸다.
+// HookEntry represents an individual event within the hooks section of settings.json.
 type HookEntry struct {
-	Event    string   // 이벤트 이름 (예: "SessionStart")
-	Count    int      // 등록된 커맨드 수
-	Commands []string // 커맨드 문자열 목록
+	Event    string   // Event name (e.g. "SessionStart").
+	Count    int      // Number of registered commands.
+	Commands []string // List of command strings.
 }
 
-// MCPServerEntry는 settings.json 또는 .mcp.json의 개별 MCP 서버를 나타낸다.
+// MCPServerEntry represents an individual MCP server from settings.json or .mcp.json.
 type MCPServerEntry struct {
-	Name    string // 서버 이름
-	Type    string // 전송 타입 (예: "stdio", "sse")
-	Command string // 실행 커맨드
+	Name    string // Server name.
+	Type    string // Transport type (e.g. "stdio", "sse").
+	Command string // Execution command.
 }
 
-// ParseSettingsHooks는 settings.json(JSONC) 원본에서 hooks 키를 파싱한다.
+// ParseSettingsHooks parses the hooks key from raw settings.json (JSONC) content.
 func ParseSettingsHooks(raw string) []HookEntry {
 	cleaned := StripJSONC(raw)
 
@@ -39,7 +39,7 @@ func ParseSettingsHooks(raw string) []HookEntry {
 	for event, cmdRaw := range hooks {
 		var cmds []map[string]any
 		if err := json.Unmarshal(cmdRaw, &cmds); err != nil {
-			// 단일 객체일 수 있음
+			// May be a single object instead of an array
 			var single map[string]any
 			if err := json.Unmarshal(cmdRaw, &single); err != nil {
 				continue
@@ -63,8 +63,8 @@ func ParseSettingsHooks(raw string) []HookEntry {
 	return entries
 }
 
-// ParseMCPServers는 JSON(JSONC) 원본에서 mcpServers 키를 파싱한다.
-// settings.json과 .mcp.json 양쪽에서 사용 가능하다.
+// ParseMCPServers parses the mcpServers key from raw JSON/JSONC content.
+// Works with both settings.json and .mcp.json.
 func ParseMCPServers(raw string) []MCPServerEntry {
 	cleaned := StripJSONC(raw)
 

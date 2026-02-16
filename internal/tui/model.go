@@ -16,7 +16,7 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/watcher"
 )
 
-// Pane은 현재 포커스된 패널을 나타낸다.
+// Pane represents the currently focused panel.
 type Pane int
 
 const (
@@ -26,7 +26,7 @@ const (
 
 const version = "0.1.0"
 
-// Model은 TUI 전체 상태를 관리한다.
+// Model manages the overall TUI state.
 type Model struct {
 	scan         *model.ScanResult
 	tree         TreeModel
@@ -42,11 +42,11 @@ type Model struct {
 	rankingMode  bool
 	ranking      RankingModel
 	scanDuration time.Duration
-	watcher      *watcher.Watcher  // 파일 감시자 (nil이면 비활성)
-	sc           *scanner.Scanner  // rescan용
+	watcher      *watcher.Watcher  // File watcher (nil if inactive).
+	sc           *scanner.Scanner  // For rescanning.
 }
 
-// NewModel은 ScanResult로부터 TUI 모델을 생성한다.
+// NewModel creates a TUI model from a ScanResult.
 func NewModel(result *model.ScanResult, scanDuration time.Duration, s *scanner.Scanner) Model {
 	tree := NewTreeModel(result)
 	homeDir, _ := os.UserHomeDir()
@@ -63,7 +63,7 @@ func NewModel(result *model.ScanResult, scanDuration time.Duration, s *scanner.S
 		m.preview.SetFile(f)
 	}
 
-	// 파일 감시자 생성 (실패 시 nil — 감시 없이 동작)
+	// Create file watcher (nil on failure — operates without watching).
 	paths := scanner.WatchPaths(result.RootDir)
 	if w, err := watcher.New(paths); err == nil {
 		m.watcher = w
@@ -72,8 +72,8 @@ func NewModel(result *model.ScanResult, scanDuration time.Duration, s *scanner.S
 	return m
 }
 
-// fileStats는 존재하는 파일 수와 전체 파일 수를 반환한다.
-// 가상 노드(IsVirtual)는 실제 파일이 아니므로 카운트에서 제외한다.
+// fileStats returns the count of existing files and the total file count.
+// Virtual nodes (IsVirtual) are excluded since they are not real files.
 func (m *Model) fileStats() (exist, total int) {
 	for _, f := range m.scan.All() {
 		total++
@@ -113,12 +113,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// 검색 모드
+		// Search mode.
 		if m.searchMode {
 			return m.updateSearch(msg)
 		}
 
-		// 랭킹 모드
+		// Ranking mode.
 		if m.rankingMode {
 			return m.updateRanking(msg)
 		}
@@ -209,7 +209,7 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyEnter:
 		m.searchMode = false
-		// 필터 유지
+		// Keep filter active.
 		return m, nil
 	case tea.KeyBackspace:
 		if len(m.searchText) > 0 {
@@ -228,22 +228,22 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	if !m.ready {
-		return "로딩 중..."
+		return "Loading..."
 	}
 
-	// 랭킹 모드 — 풀스크린
+	// Ranking mode — fullscreen.
 	if m.rankingMode {
 		return m.renderRankingView()
 	}
 
-	// 헤더 — 장식 라인
+	// Header — decorated line.
 	header := m.renderHeader()
 
-	// 풋터 — HUD 또는 검색바
+	// Footer — HUD or search bar.
 	var footer string
 	if m.searchMode {
 		searchBar := lipgloss.NewStyle().Foreground(colorMagenta).Render(
-			fmt.Sprintf("🔍 /%s█  (Enter: 확인, Esc: 취소)", m.searchText),
+			fmt.Sprintf("🔍 /%s█  (Enter: confirm, Esc: cancel)", m.searchText),
 		)
 		footer = footerStyle.Render(searchBar)
 	} else {
@@ -253,12 +253,12 @@ func (m Model) View() string {
 		footer = footerStyle.Render(renderHUD(existCount, totalCount, scopeName, scanSec, m.watcher != nil))
 	}
 
-	// 메인 영역 치수
+	// Main area dimensions.
 	contentH := m.contentHeight()
 	treeW := m.treeWidth()
 	previewW := m.previewWidth()
 
-	// 패널 렌더링
+	// Render panels.
 	m.tree.SetHeight(contentH)
 	m.preview.SetHeight(contentH)
 	treeView := m.tree.View(treeW, m.focus == PaneTree)
@@ -357,7 +357,7 @@ func (m *Model) renderRankingView() string {
 	panelFrameW := panelFocusedStyle.GetHorizontalFrameSize()
 	rankingContent := m.ranking.View(m.width-2-panelFrameW, contentH)
 
-	// 랭킹 HUD
+	// Ranking HUD.
 	footer := footerStyle.Render(renderRankingHUD())
 
 	style := panelFocusedStyle.Width(m.width - 2).Height(contentH)
@@ -370,14 +370,14 @@ func renderRankingHUD() string {
 	sep := hudSep.Render(" │ ")
 
 	nav := hudLabelNav.Render("[NAV]") + " " +
-		hudKey.Render("↑↓") + hudDesc.Render(" 이동  ") +
-		hudKey.Render("1/2/3") + hudDesc.Render(" 탭  ") +
-		hudKey.Render("⇥") + hudDesc.Render(" 다음 탭")
+		hudKey.Render("↑↓") + hudDesc.Render(" move  ") +
+		hudKey.Render("1/2/3") + hudDesc.Render(" tab  ") +
+		hudKey.Render("⇥") + hudDesc.Render(" next tab")
 
 	cmd := hudLabelCmd.Render("[CMD]") + " " +
-		hudKey.Render("s") + hudDesc.Render(" 범위  ") +
-		hudKey.Render("r/Esc") + hudDesc.Render(" 닫기  ") +
-		hudKey.Render("q") + hudDesc.Render(" 종료")
+		hudKey.Render("s") + hudDesc.Render(" scope  ") +
+		hudKey.Render("r/Esc") + hudDesc.Render(" close  ") +
+		hudKey.Render("q") + hudDesc.Render(" quit")
 
 	return nav + sep + cmd
 }
@@ -400,7 +400,7 @@ func (m *Model) updateLayout() {
 	m.tree.SetHeight(h)
 	m.preview.SetHeight(h)
 	m.preview.PrepareCardContent(m.previewWidth())
-	m.ranking.SetHeight(h - 3) // 탭바 + 범위바 + 구분선
+	m.ranking.SetHeight(h - 3) // Tab bar + scope bar + separator.
 }
 
 func (m *Model) contentHeight() int {
@@ -419,7 +419,7 @@ func (m *Model) treeWidth() int {
 	return w
 }
 
-// waitCmd는 watcher가 활성화된 경우 다음 변경 대기 명령을 반환한다.
+// waitCmd returns a command to wait for the next file change if the watcher is active.
 func (m *Model) waitCmd() tea.Cmd {
 	if m.watcher != nil {
 		return m.watcher.WaitForChange()
@@ -427,16 +427,16 @@ func (m *Model) waitCmd() tea.Cmd {
 	return nil
 }
 
-// handleFileChanged는 파일 변경 감지 시 리스캔을 수행하고 트리를 재구성한다.
+// handleFileChanged performs a rescan and rebuilds the tree when a file change is detected.
 func (m Model) handleFileChanged() (tea.Model, tea.Cmd) {
 	if m.sc == nil {
 		return m, m.waitCmd()
 	}
 
-	// 트리 상태 캡처
+	// Capture tree state.
 	state := m.tree.CaptureState()
 
-	// 리스캔
+	// Rescan.
 	start := time.Now()
 	result, err := m.sc.Scan()
 	scanDuration := time.Since(start)
@@ -444,17 +444,17 @@ func (m Model) handleFileChanged() (tea.Model, tea.Cmd) {
 		return m, m.waitCmd()
 	}
 
-	// 트리 재구성 + 상태 복원
+	// Rebuild tree and restore state.
 	m.scan = result
 	m.scanDuration = scanDuration
 	m.tree = NewTreeModel(result)
 	m.tree.RestoreState(state)
 	m.tree.SetHeight(m.contentHeight())
 
-	// 머지 갱신
+	// Update merge.
 	m.merged = merger.Merge(result)
 
-	// 프리뷰 갱신
+	// Update preview.
 	m.preview.InvalidateCache()
 	m.syncPreview()
 

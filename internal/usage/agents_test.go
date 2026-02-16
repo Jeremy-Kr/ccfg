@@ -26,7 +26,7 @@ func TestCollectAgents_Opencode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// explore는 빌트인 인프라 에이전트라 제외됨
+	// explore is a built-in infrastructure agent and should be excluded
 	if counts["explore"] != 0 {
 		t.Errorf("explore: got %d, want 0 (excluded)", counts["explore"])
 	}
@@ -45,7 +45,7 @@ func TestCollectAgents_ClaudeCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Claude Code 형식: assistant 메시지 안의 tool_use 블록
+	// Claude Code format: tool_use blocks inside an assistant message
 	lines := []string{
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"explore","prompt":"search"}}]}}`,
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"code-reviewer","prompt":"review"}},{"type":"text","text":"reviewing..."}]}}`,
@@ -54,12 +54,12 @@ func TestCollectAgents_ClaudeCode(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
 
-	// All 범위에서 projects/ 하위도 스캔되는지 확인
+	// Verify that projects/ subdirectories are scanned in All scope
 	counts, err := collectAgents(home, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// explore는 빌트인 인프라 에이전트라 제외됨
+	// explore is a built-in infrastructure agent and should be excluded
 	if counts["explore"] != 0 {
 		t.Errorf("explore: got %d, want 0 (excluded)", counts["explore"])
 	}
@@ -76,13 +76,13 @@ func TestCollectAgents_GeneralPurposeResolve(t *testing.T) {
 	}
 
 	lines := []string{
-		// 커스텀 에이전트: description에 "이름:" 패턴
+		// Custom agent: "name:" pattern in description
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"horner: evaluate code","prompt":"..."}}]}}`,
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"horner: review PR","prompt":"..."}}]}}`,
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"newey: design spec","prompt":"..."}}]}}`,
-		// 이름 패턴 없음: general-purpose 유지
-		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"Rules 파일 생성","prompt":"..."}}]}}`,
-		// 공백 포함 접두사: general-purpose 유지
+		// No name pattern: stays as general-purpose
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"Generate rules file","prompt":"..."}}]}}`,
+		// Prefix with spaces: stays as general-purpose
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"general-purpose","description":"Agent #1: do something","prompt":"..."}}]}}`,
 	}
 	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
@@ -186,7 +186,7 @@ func TestCollectTools_ClaudeCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 한 assistant 줄에 여러 tool_use 블록
+	// Multiple tool_use blocks in a single assistant line
 	lines := []string{
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"a.go"}},{"type":"tool_use","name":"Read","input":{"file_path":"b.go"}}]}}`,
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"go test"}}]}}`,
@@ -225,7 +225,7 @@ func TestEncodeProjectPath(t *testing.T) {
 func TestTranscriptDirs_AllScope(t *testing.T) {
 	home := t.TempDir()
 
-	// transcripts/ 와 projects/ 둘 다 생성
+	// Create both transcripts/ and projects/
 	os.MkdirAll(filepath.Join(home, ".claude", "transcripts"), 0o755)
 	os.MkdirAll(filepath.Join(home, ".claude", "projects", "-proj-a"), 0o755)
 	os.MkdirAll(filepath.Join(home, ".claude", "projects", "-proj-b"), 0o755)

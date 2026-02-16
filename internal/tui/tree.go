@@ -8,7 +8,7 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/model"
 )
 
-// Scope별 이모지와 색상
+// scopeStyle maps each scope to its emoji and color.
 var scopeStyle = map[model.Scope]struct {
 	emoji string
 	color lipgloss.Color
@@ -18,7 +18,7 @@ var scopeStyle = map[model.Scope]struct {
 	model.ScopeProject: {"📁", colorCyan},
 }
 
-// 카테고리별 이모지
+// categoryEmoji maps each config category to its emoji.
 var categoryEmoji = map[model.ConfigCategory]string{
 	model.CategorySettings:    "⚙️ ",
 	model.CategoryInstructions: "📝",
@@ -31,25 +31,25 @@ var categoryEmoji = map[model.ConfigCategory]string{
 	model.CategoryHooks:        "🪝",
 }
 
-// TreeNode는 트리의 한 항목을 나타낸다.
+// TreeNode represents a single item in the tree.
 type TreeNode struct {
-	Label    string            // 표시 텍스트
-	Scope    model.Scope       // 소속 Scope
-	File     *model.ConfigFile // nil이면 Scope 헤더 노드
-	Expanded bool              // 자식이 펼쳐져 있는지
-	Children []TreeNode        // 하위 노드
+	Label    string            // Display text.
+	Scope    model.Scope       // Owning scope.
+	File     *model.ConfigFile // nil for scope header nodes.
+	Expanded bool              // Whether children are expanded.
+	Children []TreeNode        // Child nodes.
 }
 
-// TreeModel은 좌측 트리 패널의 상태를 관리한다.
+// TreeModel manages the state of the left tree panel.
 type TreeModel struct {
-	roots  []TreeNode // 최상위 노드 (Scope별)
-	cursor int        // 현재 선택된 visible 인덱스
-	offset int        // 스크롤 오프셋
-	height int        // 표시 가능한 행 수
-	filter string     // 검색 필터 (빈 문자열이면 필터 없음)
+	roots  []TreeNode // Top-level nodes (one per scope).
+	cursor int        // Currently selected visible index.
+	offset int        // Scroll offset.
+	height int        // Number of visible rows.
+	filter string     // Search filter (empty string means no filter).
 }
 
-// NewTreeModel은 ScanResult로부터 트리를 구성한다.
+// NewTreeModel builds a tree from a ScanResult.
 func NewTreeModel(result *model.ScanResult) TreeModel {
 	var roots []TreeNode
 
@@ -63,7 +63,7 @@ func NewTreeModel(result *model.ScanResult) TreeModel {
 		roots = append(roots, makeScopeNode("Project", model.ScopeProject, result.Project))
 	}
 
-	// 첫 번째 Scope를 펼친 상태로 시작
+	// Start with the first scope expanded.
 	if len(roots) > 0 {
 		roots[0].Expanded = true
 	}
@@ -84,7 +84,7 @@ func makeScopeNode(label string, scope model.Scope, files []model.ConfigFile) Tr
 	}
 }
 
-// makeFileNode은 ConfigFile로부터 TreeNode를 재귀적으로 생성한다.
+// makeFileNode recursively creates a TreeNode from a ConfigFile.
 func makeFileNode(f model.ConfigFile, scope model.Scope) TreeNode {
 	node := TreeNode{
 		Label: f.Description,
@@ -98,14 +98,14 @@ func makeFileNode(f model.ConfigFile, scope model.Scope) TreeNode {
 	return node
 }
 
-// visibleNodes는 현재 펼쳐진 노드들을 플랫 리스트로 반환한다.
+// visibleNodes returns the currently expanded nodes as a flat list.
 func (t *TreeModel) visibleNodes() []TreeNode {
 	var nodes []TreeNode
 	filter := strings.ToLower(t.filter)
 
 	for _, root := range t.roots {
 		if filter != "" {
-			// 필터 모드: 매칭되는 자식이 있는 Scope만 표시
+			// Filter mode: only show scopes with matching children.
 			var matched []TreeNode
 			for _, child := range root.Children {
 				if strings.Contains(strings.ToLower(child.Label), filter) ||
@@ -127,7 +127,7 @@ func (t *TreeModel) visibleNodes() []TreeNode {
 	return nodes
 }
 
-// flattenExpanded는 펼쳐진 노드를 재귀적으로 플랫 리스트로 변환한다.
+// flattenExpanded recursively flattens expanded nodes into a flat list.
 func flattenExpanded(nodes []TreeNode) []TreeNode {
 	var flat []TreeNode
 	for _, node := range nodes {
@@ -139,19 +139,19 @@ func flattenExpanded(nodes []TreeNode) []TreeNode {
 	return flat
 }
 
-// Filter는 트리를 검색어로 필터링한다.
+// Filter filters the tree by the given search text.
 func (t *TreeModel) Filter(text string) {
 	t.filter = text
 	t.cursor = 0
 	t.offset = 0
 }
 
-// ClearFilter는 필터를 해제한다.
+// ClearFilter clears the active filter.
 func (t *TreeModel) ClearFilter() {
 	t.filter = ""
 }
 
-// SelectedFile은 현재 커서가 가리키는 파일을 반환한다. Scope 노드면 nil.
+// SelectedFile returns the file at the current cursor position. Returns nil for scope nodes.
 func (t *TreeModel) SelectedFile() *model.ConfigFile {
 	visible := t.visibleNodes()
 	if t.cursor >= 0 && t.cursor < len(visible) {
@@ -160,7 +160,7 @@ func (t *TreeModel) SelectedFile() *model.ConfigFile {
 	return nil
 }
 
-// SelectedScope는 현재 커서가 가리키는 노드의 Scope를 반환한다.
+// SelectedScope returns the scope of the node at the current cursor position.
 func (t *TreeModel) SelectedScope() model.Scope {
 	visible := t.visibleNodes()
 	if t.cursor >= 0 && t.cursor < len(visible) {
@@ -169,7 +169,7 @@ func (t *TreeModel) SelectedScope() model.Scope {
 	return model.ScopeUser
 }
 
-// MoveUp은 커서를 위로 이동한다.
+// MoveUp moves the cursor up.
 func (t *TreeModel) MoveUp() {
 	if t.cursor > 0 {
 		t.cursor--
@@ -177,7 +177,7 @@ func (t *TreeModel) MoveUp() {
 	}
 }
 
-// MoveDown은 커서를 아래로 이동한다.
+// MoveDown moves the cursor down.
 func (t *TreeModel) MoveDown() {
 	visible := t.visibleNodes()
 	if t.cursor < len(visible)-1 {
@@ -186,7 +186,7 @@ func (t *TreeModel) MoveDown() {
 	}
 }
 
-// Toggle은 펼칠 수 있는 노드(Scope 헤더, 디렉토리)를 펼치거나 접는다.
+// Toggle expands or collapses a toggleable node (scope header or directory).
 func (t *TreeModel) Toggle() {
 	visible := t.visibleNodes()
 	if t.cursor < 0 || t.cursor >= len(visible) {
@@ -194,7 +194,7 @@ func (t *TreeModel) Toggle() {
 	}
 	node := visible[t.cursor]
 
-	// Scope 헤더 노드 토글
+	// Toggle scope header node.
 	if node.File == nil {
 		for i := range t.roots {
 			if t.roots[i].Label == node.Label {
@@ -208,14 +208,14 @@ func (t *TreeModel) Toggle() {
 		return
 	}
 
-	// 파일 노드 토글 (Children이 있는 경우 — 디렉토리 또는 가상 그룹)
+	// Toggle file node (when it has children — directory or virtual group).
 	if len(node.Children) > 0 {
 		toggleByPath(t.roots, node.File.Path)
 		t.clampCursor()
 	}
 }
 
-// toggleByPath는 트리에서 경로가 일치하는 노드의 Expanded를 토글한다.
+// toggleByPath toggles the Expanded field of the node matching the given path.
 func toggleByPath(nodes []TreeNode, path string) bool {
 	for i := range nodes {
 		if nodes[i].File != nil && nodes[i].File.Path == path {
@@ -251,13 +251,13 @@ func (t *TreeModel) adjustScroll() {
 	}
 }
 
-// SetHeight는 표시 가능한 행 수를 설정한다.
+// SetHeight sets the number of visible rows.
 func (t *TreeModel) SetHeight(h int) {
 	t.height = h
 	t.adjustScroll()
 }
 
-// View는 트리를 문자열로 렌더링한다.
+// View renders the tree as a string.
 func (t *TreeModel) View(width int, focused bool) string {
 	visible := t.visibleNodes()
 	var b strings.Builder
@@ -293,7 +293,7 @@ func (t *TreeModel) View(width int, focused bool) string {
 		}
 	}
 
-	// 남는 행은 빈 줄로 채우기
+	// Fill remaining rows with empty lines.
 	rendered := end - t.offset
 	for i := rendered; i < t.height; i++ {
 		if i > 0 {
@@ -307,7 +307,7 @@ func (t *TreeModel) View(width int, focused bool) string {
 
 func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 	if node.File == nil {
-		// Scope 헤더
+		// Scope header.
 		arrow := "▶"
 		for _, r := range t.roots {
 			if r.Label == node.Label && r.Expanded {
@@ -331,13 +331,13 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 	depth := nodeDepth(t.roots, node.File)
 	indent := strings.Repeat("  ", depth)
 
-	// 카테고리 이모지
+	// Category emoji.
 	emoji := ""
 	if e, ok := categoryEmoji[node.File.Category]; ok {
 		emoji = e + " "
 	}
 
-	// 펼침 가능한 노드 (디렉토리 또는 Children이 있는 가상 그룹)
+	// Expandable node (directory or virtual group with children).
 	if len(node.Children) > 0 {
 		arrow := "▶"
 		if node.Expanded {
@@ -351,7 +351,7 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 		return dirStyle.Render(text)
 	}
 
-	// 가상 리프 노드 (JSON 내부 섹션의 개별 항목)
+	// Virtual leaf node (individual item from a JSON internal section).
 	if node.File.IsVirtual {
 		text := fmt.Sprintf("%s%s%s", indent, emoji, node.Label)
 		if selected && focused {
@@ -360,7 +360,7 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 		return treeItemStyle.Render(text)
 	}
 
-	// 파일 노드
+	// File node.
 	if selected && focused {
 		text := fmt.Sprintf("%s▸ %s%s", indent, emoji, node.Label)
 		return treeSelectedStyle.Render(text)
@@ -374,7 +374,7 @@ func (t *TreeModel) renderNode(node TreeNode, selected, focused bool) string {
 	return treeItemStyle.Render(text)
 }
 
-// nodeDepth는 트리에서 해당 파일 노드의 깊이를 반환한다.
+// nodeDepth returns the depth of the given file node in the tree.
 func nodeDepth(roots []TreeNode, target *model.ConfigFile) int {
 	if target == nil {
 		return 0
@@ -399,13 +399,13 @@ func findDepth(nodes []TreeNode, path string, depth int) int {
 	return 0
 }
 
-// TreeState는 트리의 펼침 상태와 선택 위치를 캡처한 스냅샷이다.
+// TreeState is a snapshot of the tree's expansion state and cursor position.
 type TreeState struct {
-	Expanded     map[string]bool // key → expanded (scope 헤더는 "__scope__"+label, 파일은 path)
-	SelectedPath string          // 현재 선택된 파일 경로
+	Expanded     map[string]bool // key -> expanded ("__scope__"+label for scope headers, path for files).
+	SelectedPath string          // Currently selected file path.
 }
 
-// CaptureState는 현재 트리의 펼침 상태와 커서 위치를 캡처한다.
+// CaptureState captures the current expansion state and cursor position of the tree.
 func (t *TreeModel) CaptureState() TreeState {
 	expanded := make(map[string]bool)
 	for _, root := range t.roots {
@@ -433,7 +433,7 @@ func captureExpanded(nodes []TreeNode, out map[string]bool) {
 	}
 }
 
-// RestoreState는 캡처된 상태를 현재 트리에 복원한다.
+// RestoreState restores a previously captured state to the current tree.
 func (t *TreeModel) RestoreState(state TreeState) {
 	for i := range t.roots {
 		if v, ok := state.Expanded["__scope__"+t.roots[i].Label]; ok {
@@ -442,7 +442,7 @@ func (t *TreeModel) RestoreState(state TreeState) {
 		restoreExpanded(t.roots[i].Children, state.Expanded)
 	}
 
-	// 선택 위치 복원
+	// Restore cursor position.
 	if state.SelectedPath != "" {
 		visible := t.visibleNodes()
 		for i, node := range visible {

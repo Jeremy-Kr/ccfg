@@ -8,9 +8,9 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/model"
 )
 
-// WatchPaths는 모든 Scope의 설정 파일/디렉토리 경로를 조합하여
-// fsnotify로 감시할 대상 목록을 반환한다.
-// 파일은 부모 디렉토리 + 파일 자체(존재하면)를, 디렉토리는 그대로 추가한다.
+// WatchPaths collects file and directory paths across all scopes for fsnotify watching.
+// For files, it adds both the parent directory (to detect creation/deletion) and the file
+// itself (to detect content changes, if it exists). Directories are added as-is.
 func WatchPaths(projectRoot string) []string {
 	seen := make(map[string]bool)
 	var paths []string
@@ -32,9 +32,9 @@ func WatchPaths(projectRoot string) []string {
 			if e.IsDir {
 				add(abs)
 			} else {
-				// 부모 디렉토리 (파일 생성/삭제 감지용)
+				// Parent directory (to detect file creation/deletion)
 				add(filepath.Dir(abs))
-				// 파일 자체 (내용 변경 감지용, 존재하는 경우만)
+				// File itself (to detect content changes, only if it exists)
 				if _, err := os.Stat(abs); err == nil {
 					add(abs)
 				}
@@ -55,15 +55,15 @@ func WatchPaths(projectRoot string) []string {
 	return paths
 }
 
-// FileEntry는 스캔 대상 파일 하나를 정의한다.
+// FileEntry defines a single file to scan.
 type FileEntry struct {
-	RelPath     string               // 기준 디렉토리로부터의 상대 경로
-	Description string               // 사용자에게 보여줄 설명
-	Category    model.ConfigCategory // 기능별 분류
-	IsDir       bool                 // 디렉토리 스캔 여부
+	RelPath     string               // Relative path from the base directory.
+	Description string               // Human-readable description.
+	Category    model.ConfigCategory // Functional category.
+	IsDir       bool                 // Whether to scan as a directory.
 }
 
-// GetUserHomeDir는 현재 사용자의 홈 디렉토리를 반환한다.
+// GetUserHomeDir returns the current user's home directory.
 func GetUserHomeDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -72,7 +72,7 @@ func GetUserHomeDir() string {
 	return home
 }
 
-// ManagedPaths는 시스템 관리자가 관리하는 설정 파일 경로를 반환한다.
+// ManagedPaths returns paths for system-administered configuration files.
 func ManagedPaths() (string, []FileEntry) {
 	var base string
 	switch runtime.GOOS {
@@ -85,12 +85,12 @@ func ManagedPaths() (string, []FileEntry) {
 	}
 
 	return base, []FileEntry{
-		{RelPath: "managed_settings.json", Description: "관리형 설정", Category: model.CategorySettings},
-		{RelPath: "policies.json", Description: "정책 파일", Category: model.CategoryPolicy},
+		{RelPath: "managed_settings.json", Description: "Managed settings", Category: model.CategorySettings},
+		{RelPath: "policies.json", Description: "Policy file", Category: model.CategoryPolicy},
 	}
 }
 
-// UserPaths는 사용자 전역 설정 파일 경로를 반환한다.
+// UserPaths returns paths for user-level global configuration files.
 func UserPaths() (string, []FileEntry) {
 	home := GetUserHomeDir()
 	if home == "" {
@@ -98,32 +98,32 @@ func UserPaths() (string, []FileEntry) {
 	}
 
 	return home, []FileEntry{
-		{RelPath: filepath.Join(".claude", "settings.json"), Description: "사용자 전역 설정", Category: model.CategorySettings},
-		{RelPath: filepath.Join(".claude", "settings.local.json"), Description: "사용자 로컬 설정", Category: model.CategorySettings},
-		{RelPath: ".claude.json", Description: "레거시 전역 설정", Category: model.CategorySettings},
-		{RelPath: filepath.Join(".claude", "CLAUDE.md"), Description: "사용자 전역 지시사항", Category: model.CategoryInstructions},
-		{RelPath: ".mcp.json", Description: "MCP 서버 전역 설정", Category: model.CategoryMCP},
-		{RelPath: filepath.Join(".claude", "commands"), Description: "커스텀 명령어", Category: model.CategoryCommands, IsDir: true},
-		{RelPath: filepath.Join(".claude", "skills"), Description: "에이전트 스킬", Category: model.CategorySkills, IsDir: true},
-		{RelPath: filepath.Join(".claude", "agents"), Description: "커스텀 에이전트", Category: model.CategoryAgents, IsDir: true},
-		{RelPath: filepath.Join(".claude", "keybindings.json"), Description: "키바인딩 설정", Category: model.CategoryKeybindings},
+		{RelPath: filepath.Join(".claude", "settings.json"), Description: "User global settings", Category: model.CategorySettings},
+		{RelPath: filepath.Join(".claude", "settings.local.json"), Description: "User local settings", Category: model.CategorySettings},
+		{RelPath: ".claude.json", Description: "Legacy global settings", Category: model.CategorySettings},
+		{RelPath: filepath.Join(".claude", "CLAUDE.md"), Description: "User global instructions", Category: model.CategoryInstructions},
+		{RelPath: ".mcp.json", Description: "MCP server global settings", Category: model.CategoryMCP},
+		{RelPath: filepath.Join(".claude", "commands"), Description: "Custom commands", Category: model.CategoryCommands, IsDir: true},
+		{RelPath: filepath.Join(".claude", "skills"), Description: "Agent skills", Category: model.CategorySkills, IsDir: true},
+		{RelPath: filepath.Join(".claude", "agents"), Description: "Custom agents", Category: model.CategoryAgents, IsDir: true},
+		{RelPath: filepath.Join(".claude", "keybindings.json"), Description: "Keybinding settings", Category: model.CategoryKeybindings},
 	}
 }
 
-// ProjectPaths는 프로젝트별 설정 파일 경로를 반환한다.
+// ProjectPaths returns paths for project-level configuration files.
 func ProjectPaths(root string) (string, []FileEntry) {
 	if root == "" {
 		return "", nil
 	}
 
 	return root, []FileEntry{
-		{RelPath: filepath.Join(".claude", "settings.json"), Description: "프로젝트 설정", Category: model.CategorySettings},
-		{RelPath: filepath.Join(".claude", "settings.local.json"), Description: "프로젝트 로컬 설정", Category: model.CategorySettings},
-		{RelPath: "CLAUDE.md", Description: "프로젝트 지시사항", Category: model.CategoryInstructions},
-		{RelPath: filepath.Join(".claude", "CLAUDE.md"), Description: "프로젝트 지시사항 (대체 위치)", Category: model.CategoryInstructions},
-		{RelPath: ".mcp.json", Description: "MCP 서버 프로젝트 설정", Category: model.CategoryMCP},
-		{RelPath: filepath.Join(".claude", "commands"), Description: "프로젝트 명령어", Category: model.CategoryCommands, IsDir: true},
-		{RelPath: filepath.Join(".claude", "skills"), Description: "프로젝트 스킬", Category: model.CategorySkills, IsDir: true},
-		{RelPath: filepath.Join(".claude", "agents"), Description: "프로젝트 에이전트", Category: model.CategoryAgents, IsDir: true},
+		{RelPath: filepath.Join(".claude", "settings.json"), Description: "Project settings", Category: model.CategorySettings},
+		{RelPath: filepath.Join(".claude", "settings.local.json"), Description: "Project local settings", Category: model.CategorySettings},
+		{RelPath: "CLAUDE.md", Description: "Project instructions", Category: model.CategoryInstructions},
+		{RelPath: filepath.Join(".claude", "CLAUDE.md"), Description: "Project instructions (alternate location)", Category: model.CategoryInstructions},
+		{RelPath: ".mcp.json", Description: "MCP server project settings", Category: model.CategoryMCP},
+		{RelPath: filepath.Join(".claude", "commands"), Description: "Project commands", Category: model.CategoryCommands, IsDir: true},
+		{RelPath: filepath.Join(".claude", "skills"), Description: "Project skills", Category: model.CategorySkills, IsDir: true},
+		{RelPath: filepath.Join(".claude", "agents"), Description: "Project agents", Category: model.CategoryAgents, IsDir: true},
 	}
 }

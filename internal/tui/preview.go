@@ -12,18 +12,18 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/parser"
 )
 
-// PreviewModel은 우측 미리보기 패널의 상태를 관리한다.
+// PreviewModel manages the state of the right preview panel.
 type PreviewModel struct {
-	file       *model.ConfigFile // 현재 표시 중인 파일
-	content    string            // 파일 내용
-	lines      []string          // 줄 단위 분할
-	offset     int               // 스크롤 오프셋
-	height     int               // 표시 가능한 행 수
-	isCardMode bool              // 카드 모드 (agents/skills 디렉토리)
-	lastWidth  int               // 카드 모드에서 사용한 마지막 폭
+	file       *model.ConfigFile // Currently displayed file.
+	content    string            // File content.
+	lines      []string          // Content split by line.
+	offset     int               // Scroll offset.
+	height     int               // Number of visible rows.
+	isCardMode bool              // Card mode (agents/skills directory).
+	lastWidth  int               // Last width used in card mode.
 }
 
-// SetFile은 미리보기에 표시할 파일을 설정한다.
+// SetFile sets the file to display in the preview.
 func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 	if file == nil {
 		p.file = nil
@@ -34,7 +34,7 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 		return
 	}
 
-	// 이미 같은 파일이면 스킵
+	// Skip if the same file is already displayed.
 	if p.file != nil && p.file.Path == file.Path {
 		return
 	}
@@ -43,7 +43,7 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 	p.offset = 0
 	p.isCardMode = false
 
-	// 가상 노드 — JSON 내부 섹션 미리보기
+	// Virtual node — JSON internal section preview.
 	if file.IsVirtual {
 		p.content = p.renderVirtualNode(file)
 		p.lines = strings.Split(p.content, "\n")
@@ -51,17 +51,17 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 	}
 
 	if !file.Exists {
-		p.content = "(파일이 존재하지 않습니다)"
+		p.content = "(file not found)"
 		p.lines = []string{p.content}
 		return
 	}
 
-	// 디렉토리인 경우
+	// Directory case.
 	if file.IsDir {
-		// agents/skills 디렉토리는 카드 모드
+		// agents/skills directories use card mode.
 		if file.Category == model.CategoryAgents || file.Category == model.CategorySkills {
 			p.isCardMode = true
-			// lastWidth가 있으면 즉시 카드 생성, 없으면 PrepareCardContent 호출 대기
+			// Generate cards immediately if lastWidth is available, otherwise wait for PrepareCardContent.
 			if p.lastWidth > 0 {
 				p.generateCardLines(p.lastWidth)
 			} else {
@@ -77,7 +77,7 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 
 	data, err := os.ReadFile(file.Path)
 	if err != nil {
-		p.content = fmt.Sprintf("(읽기 실패: %v)", err)
+		p.content = fmt.Sprintf("(failed to read: %v)", err)
 		p.lines = []string{p.content}
 		return
 	}
@@ -96,12 +96,12 @@ func (p *PreviewModel) SetFile(file *model.ConfigFile) {
 
 func (p *PreviewModel) renderDir(file *model.ConfigFile) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("디렉토리: %s\n\n", file.Path))
+	b.WriteString(fmt.Sprintf("Directory: %s\n\n", file.Path))
 
 	if len(file.Children) == 0 {
 		entries, err := os.ReadDir(file.Path)
 		if err != nil {
-			b.WriteString(fmt.Sprintf("(읽기 실패: %v)", err))
+			b.WriteString(fmt.Sprintf("(failed to read: %v)", err))
 			return b.String()
 		}
 		for _, entry := range entries {
@@ -122,7 +122,7 @@ func (p *PreviewModel) renderDir(file *model.ConfigFile) string {
 	return b.String()
 }
 
-// dirIcon은 디렉토리 여부에 따라 아이콘을 반환한다.
+// dirIcon returns a directory or file icon based on whether it is a directory.
 func dirIcon(isDir bool) string {
 	if isDir {
 		return "📁"
@@ -130,10 +130,10 @@ func dirIcon(isDir bool) string {
 	return "📄"
 }
 
-// InvalidateCache는 현재 캐시된 파일을 무효화하여 다음 SetFile 호출 시 강제 갱신한다.
+// InvalidateCache invalidates the cached file so the next SetFile call forces a refresh.
 func (p *PreviewModel) InvalidateCache() { p.file = nil }
 
-// ScrollUp은 미리보기를 위로 스크롤한다.
+// ScrollUp scrolls the preview up by n lines.
 func (p *PreviewModel) ScrollUp(n int) {
 	p.offset -= n
 	if p.offset < 0 {
@@ -141,7 +141,7 @@ func (p *PreviewModel) ScrollUp(n int) {
 	}
 }
 
-// ScrollDown은 미리보기를 아래로 스크롤한다.
+// ScrollDown scrolls the preview down by n lines.
 func (p *PreviewModel) ScrollDown(n int) {
 	maxOffset := len(p.lines) - p.height
 	if maxOffset < 0 {
@@ -153,19 +153,19 @@ func (p *PreviewModel) ScrollDown(n int) {
 	}
 }
 
-// SetHeight는 표시 가능한 행 수를 설정한다.
+// SetHeight sets the number of visible rows.
 func (p *PreviewModel) SetHeight(h int) {
 	p.height = h
 }
 
-// PrepareCardContent는 카드 모드일 때 주어진 폭으로 카드 lines를 미리 생성한다.
-// Update() 흐름에서 호출해야 한다 (View()는 value receiver라 상태가 유지되지 않음).
+// PrepareCardContent pre-generates card lines at the given width for card mode.
+// Must be called from the Update() flow (View() uses a value receiver so state is not persisted).
 func (p *PreviewModel) PrepareCardContent(width int) {
 	if !p.isCardMode || p.file == nil || width <= 0 {
 		return
 	}
 	if p.lastWidth == width && p.lines != nil {
-		return // 이미 같은 폭으로 생성됨
+		return // Already generated at the same width.
 	}
 	p.generateCardLines(width)
 }
@@ -187,18 +187,18 @@ func (p *PreviewModel) generateCardLines(width int) {
 	p.lines = strings.Split(cardContent, "\n")
 }
 
-// View는 미리보기를 문자열로 렌더링한다.
+// View renders the preview as a string.
 func (p *PreviewModel) View(width int, focused bool) string {
 	var b strings.Builder
 	availW := width - panelStyle.GetHorizontalFrameSize()
 
 	if p.file == nil {
-		b.WriteString("파일을 선택하세요")
+		b.WriteString("Select a file")
 	} else if p.isCardMode {
-		// 카드 모드: PrepareCardContent()에서 미리 생성된 p.lines 사용
+		// Card mode: use p.lines pre-generated by PrepareCardContent().
 		renderScrollableLines(&b, p.lines, p.height, p.offset, availW)
 	} else {
-		// 파일 정보 헤더 (장식 라인)
+		// File info header (decorated line).
 		icon := dirIcon(p.file.IsDir)
 		info := p.file.Path
 		if p.file.Exists && !p.file.IsDir {
@@ -212,11 +212,11 @@ func (p *PreviewModel) View(width int, focused bool) string {
 		b.WriteString(lipgloss.NewStyle().Foreground(colorCyan).Render(decoratedHeader))
 		b.WriteString("\n")
 
-		// 내용 표시 (헤더 1줄 제외)
+		// Display content (minus 1 row for header).
 		renderScrollableLines(&b, p.lines, p.height-1, p.offset, availW)
 	}
 
-	// 패널 높이 고정 + 줄바꿈 방지
+	// Fix panel height and prevent line wrapping.
 	base := panelStyleFor(focused)
 	style := base.Width(width - base.GetHorizontalBorderSize()).Height(p.height)
 	availWidth := width - style.GetHorizontalFrameSize()
@@ -225,7 +225,7 @@ func (p *PreviewModel) View(width int, focused bool) string {
 	return style.Render(content)
 }
 
-// renderScrollableLines는 lines를 스크롤바와 함께 렌더링하여 b에 기록한다.
+// renderScrollableLines renders lines with a scrollbar and writes to b.
 func renderScrollableLines(b *strings.Builder, lines []string, visibleRows, offset, availW int) {
 	end := offset + visibleRows
 	if end > len(lines) {
@@ -257,7 +257,7 @@ func renderScrollableLines(b *strings.Builder, lines []string, visibleRows, offs
 	}
 }
 
-// renderAgentCards는 에이전트 디렉토리의 .md 파일들을 캐릭터 카드로 렌더링한다.
+// renderAgentCards renders .md files in the agents directory as character cards.
 func (p *PreviewModel) renderAgentCards(file *model.ConfigFile, width int) string {
 	var cards []string
 
@@ -274,7 +274,7 @@ func (p *PreviewModel) renderAgentCards(file *model.ConfigFile, width int) strin
 	} else {
 		entries, err := os.ReadDir(file.Path)
 		if err != nil {
-			return fmt.Sprintf("(읽기 실패: %v)", err)
+			return fmt.Sprintf("(failed to read: %v)", err)
 		}
 		for _, entry := range entries {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
@@ -288,12 +288,12 @@ func (p *PreviewModel) renderAgentCards(file *model.ConfigFile, width int) strin
 	}
 
 	if len(cards) == 0 {
-		return "(에이전트 파일 없음)"
+		return "(no agent files)"
 	}
 	return strings.Join(cards, "\n")
 }
 
-// renderSkillCards는 스킬 디렉토리의 SKILL.md 파일들을 어빌리티 카드로 렌더링한다.
+// renderSkillCards renders SKILL.md files in the skills directory as ability cards.
 func (p *PreviewModel) renderSkillCards(file *model.ConfigFile, width int) string {
 	var cards []string
 
@@ -311,7 +311,7 @@ func (p *PreviewModel) renderSkillCards(file *model.ConfigFile, width int) strin
 	} else {
 		entries, err := os.ReadDir(file.Path)
 		if err != nil {
-			return fmt.Sprintf("(읽기 실패: %v)", err)
+			return fmt.Sprintf("(failed to read: %v)", err)
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() {
@@ -326,27 +326,27 @@ func (p *PreviewModel) renderSkillCards(file *model.ConfigFile, width int) strin
 	}
 
 	if len(cards) == 0 {
-		return "(스킬 파일 없음)"
+		return "(no skill files)"
 	}
 	return strings.Join(cards, "\n")
 }
 
-// renderAgentCard는 개별 에이전트 캐릭터 카드를 렌더링한다.
-// width는 카드 박스의 총 폭 (border 포함).
+// renderAgentCard renders a single agent character card.
+// width is the total card box width (including border).
 func renderAgentCard(meta *parser.AgentMeta, width int) string {
 	var lines []string
 
-	// lipgloss Width(w)는 w - padding 에서 word wrap.
-	// 따라서 contentW = width - border - padding 이 실제 콘텐츠 폭.
+	// lipgloss Width(w) word-wraps at w - padding.
+	// So contentW = width - border - padding is the actual content width.
 	borderW := agentCardStyle.GetHorizontalBorderSize()
 	paddingW := agentCardStyle.GetHorizontalFrameSize() - borderW
 	contentW := width - borderW - paddingW
 
-	// 타이틀 라인: 🤖 name
+	// Title line: 🤖 name.
 	title := agentCardTitleStyle.Render("🤖 " + meta.Name)
 	lines = append(lines, title)
 
-	// 역할 구분선
+	// Role separator line.
 	roleLine := "━━"
 	if meta.Role != "" {
 		roleLine += " " + meta.Role + " "
@@ -356,7 +356,7 @@ func renderAgentCard(meta *parser.AgentMeta, width int) string {
 	}
 	lines = append(lines, agentCardRoleStyle.Render(roleLine))
 
-	// 설명
+	// Description.
 	if meta.Desc != "" {
 		lines = append(lines, "")
 		descLines := wrapText(meta.Desc, contentW)
@@ -364,7 +364,7 @@ func renderAgentCard(meta *parser.AgentMeta, width int) string {
 		lines = append(lines, "")
 	}
 
-	// 메타 정보 (model, color)
+	// Meta info (model, color).
 	var metaParts []string
 	if meta.Model != "" {
 		metaParts = append(metaParts, "🧠 "+meta.Model)
@@ -378,12 +378,12 @@ func renderAgentCard(meta *parser.AgentMeta, width int) string {
 	}
 
 	content := strings.Join(lines, "\n")
-	// Width = width - borderW → 내부(padding+content) 폭 설정. 총 렌더 폭 = width.
+	// Width = width - borderW sets the inner (padding+content) width. Total render width = width.
 	return agentCardStyle.Width(width - borderW).Render(content)
 }
 
-// renderSkillCard는 개별 스킬 어빌리티 카드를 렌더링한다.
-// width는 카드 박스의 총 폭 (border 포함).
+// renderSkillCard renders a single skill ability card.
+// width is the total card box width (including border).
 func renderSkillCard(meta *parser.SkillMeta, width int) string {
 	var lines []string
 
@@ -391,7 +391,7 @@ func renderSkillCard(meta *parser.SkillMeta, width int) string {
 	paddingW := skillCardStyle.GetHorizontalFrameSize() - borderW
 	contentW := width - borderW - paddingW
 
-	// 타이틀 라인: ⚡ name      [category]
+	// Title line: ⚡ name      [category].
 	titlePart := skillCardTitleStyle.Render("⚡ " + meta.Name)
 	if meta.Category != "" {
 		tag := skillCardTagStyle.Render("[" + meta.Category + "]")
@@ -403,11 +403,11 @@ func renderSkillCard(meta *parser.SkillMeta, width int) string {
 	}
 	lines = append(lines, titlePart)
 
-	// 구분선
+	// Separator line.
 	sep := strings.Repeat("━", contentW)
 	lines = append(lines, lipgloss.NewStyle().Foreground(colorCyan).Render(sep))
 
-	// 설명
+	// Description.
 	if meta.Desc != "" {
 		lines = append(lines, "")
 		descLines := wrapText(meta.Desc, contentW)
@@ -415,7 +415,7 @@ func renderSkillCard(meta *parser.SkillMeta, width int) string {
 		lines = append(lines, "")
 	}
 
-	// 태그
+	// Tags.
 	if meta.Tags != "" {
 		tagLine := lipgloss.NewStyle().Foreground(colorGreen).Render("🎯 " + meta.Tags)
 		lines = append(lines, tagLine)
@@ -425,7 +425,7 @@ func renderSkillCard(meta *parser.SkillMeta, width int) string {
 	return skillCardStyle.Width(width - borderW).Render(content)
 }
 
-// wrapText는 텍스트를 주어진 폭에 맞게 줄바꿈한다.
+// wrapText wraps text to fit within the given width.
 func wrapText(text string, width int) []string {
 	if width <= 0 {
 		return []string{text}
@@ -452,32 +452,32 @@ func wrapText(text string, width int) []string {
 	return lines
 }
 
-// renderVirtualNode는 가상 노드(JSON 내부 섹션)의 미리보기를 렌더링한다.
+// renderVirtualNode renders the preview of a virtual node (JSON internal section).
 func (p *PreviewModel) renderVirtualNode(file *model.ConfigFile) string {
 	parts := strings.SplitN(file.Path, "#", 2)
 	if len(parts) != 2 {
-		return "(가상 노드 경로 파싱 실패)"
+		return "(failed to parse virtual node path)"
 	}
 	realPath := parts[0]
 	dotPath := parts[1]
 
 	data, err := os.ReadFile(realPath)
 	if err != nil {
-		return fmt.Sprintf("(읽기 실패: %v)", err)
+		return fmt.Sprintf("(failed to read: %v)", err)
 	}
 
 	cleaned := parser.StripJSONC(string(data))
 	var obj any
 	if err := json.Unmarshal([]byte(cleaned), &obj); err != nil {
-		return fmt.Sprintf("(JSON 파싱 실패: %v)", err)
+		return fmt.Sprintf("(failed to parse JSON: %v)", err)
 	}
 
 	section := navigateJSON(obj, dotPath)
 	if section == nil {
-		return fmt.Sprintf("(섹션을 찾을 수 없습니다: %s)", dotPath)
+		return fmt.Sprintf("(section not found: %s)", dotPath)
 	}
 
-	// FormatJSON이 내부적으로 pretty-print + 구문 강조를 처리한다.
+	// FormatJSON internally handles pretty-print and syntax highlighting.
 	sectionBytes, err := json.Marshal(section)
 	if err != nil {
 		return fmt.Sprintf("%v", section)
@@ -485,7 +485,7 @@ func (p *PreviewModel) renderVirtualNode(file *model.ConfigFile) string {
 	return parser.FormatJSON(string(sectionBytes))
 }
 
-// navigateJSON은 점 표기법(dotPath)으로 JSON 객체를 탐색한다.
+// navigateJSON navigates a JSON object using dot notation (dotPath).
 func navigateJSON(obj any, dotPath string) any {
 	keys := strings.Split(dotPath, ".")
 	current := obj

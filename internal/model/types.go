@@ -2,13 +2,13 @@ package model
 
 import "time"
 
-// Scope는 설정 파일의 적용 범위를 나타낸다.
+// Scope represents the scope level of a config file.
 type Scope int
 
 const (
-	ScopeManaged Scope = iota // 시스템 관리자 설정
-	ScopeUser                 // 사용자 전역 설정
-	ScopeProject              // 프로젝트별 설정
+	ScopeManaged Scope = iota // Managed (admin) settings
+	ScopeUser                 // User-level global settings
+	ScopeProject              // Project-level settings
 )
 
 func (s Scope) String() string {
@@ -24,7 +24,7 @@ func (s Scope) String() string {
 	}
 }
 
-// FileType은 설정 파일의 형식을 나타낸다.
+// FileType represents the format of a config file.
 type FileType int
 
 const (
@@ -46,19 +46,19 @@ func (f FileType) String() string {
 	}
 }
 
-// ConfigCategory는 설정 파일의 기능별 분류를 나타낸다.
+// ConfigCategory represents the functional category of a config file.
 type ConfigCategory int
 
 const (
-	CategorySettings     ConfigCategory = iota // 동작 설정 (permissions, hooks 등)
-	CategoryInstructions                       // 지시사항 (CLAUDE.md 계열)
-	CategoryMCP                                // MCP 서버 설정
-	CategoryPolicy                             // 관리자 정책
-	CategoryCommands                           // 커스텀 슬래시 명령어
-	CategorySkills                             // 에이전트 스킬
-	CategoryAgents                             // 커스텀 에이전트 정의
-	CategoryKeybindings                        // 키바인딩 설정
-	CategoryHooks                              // Hooks 설정
+	CategorySettings     ConfigCategory = iota // Behavior settings (permissions, hooks, etc.)
+	CategoryInstructions                       // Instructions (CLAUDE.md family)
+	CategoryMCP                                // MCP server settings
+	CategoryPolicy                             // Admin policy
+	CategoryCommands                           // Custom slash commands
+	CategorySkills                             // Agent skills
+	CategoryAgents                             // Custom agent definitions
+	CategoryKeybindings                        // Keybinding settings
+	CategoryHooks                              // Hooks settings
 )
 
 func (c ConfigCategory) String() string {
@@ -86,30 +86,30 @@ func (c ConfigCategory) String() string {
 	}
 }
 
-// ConfigFile은 스캔된 개별 설정 파일을 나타낸다.
+// ConfigFile represents a single scanned config file.
 type ConfigFile struct {
-	Path        string         // 절대 경로
-	Scope       Scope          // 소속 Scope
-	FileType    FileType       // 파일 형식
-	Category    ConfigCategory // 기능별 분류
-	Exists      bool           // 파일 존재 여부
-	IsDir       bool           // 디렉토리 여부 (commands/, skills/)
-	IsVirtual   bool           // 가상 노드 여부 (JSON 내부 섹션)
-	Size        int64          // 바이트 크기 (존재 시)
-	ModTime     time.Time      // 최종 수정 시간 (존재 시)
-	Description string         // 사용자에게 보여줄 설명
-	Children    []ConfigFile   // 디렉토리인 경우 하위 파일들
+	Path        string         // Absolute path
+	Scope       Scope          // Owning scope
+	FileType    FileType       // File format
+	Category    ConfigCategory // Functional category
+	Exists      bool           // Whether the file exists
+	IsDir       bool           // Whether it is a directory (commands/, skills/)
+	IsVirtual   bool           // Whether it is a virtual node (section inside JSON)
+	Size        int64          // Size in bytes (when exists)
+	ModTime     time.Time      // Last modification time (when exists)
+	Description string         // Human-readable description
+	Children    []ConfigFile   // Child files when this is a directory
 }
 
-// ScanResult는 전체 스캔 결과를 나타낸다.
+// ScanResult represents the complete scan result.
 type ScanResult struct {
-	Managed []ConfigFile // Managed Scope 파일들
-	User    []ConfigFile // User Scope 파일들
-	Project []ConfigFile // Project Scope 파일들
-	RootDir string       // 감지된 프로젝트 루트 (없으면 빈 문자열)
+	Managed []ConfigFile // Managed scope files
+	User    []ConfigFile // User scope files
+	Project []ConfigFile // Project scope files
+	RootDir string       // Detected project root (empty string if none)
 }
 
-// All은 모든 Scope의 파일을 하나의 슬라이스로 반환한다.
+// All returns all config files from every scope as a single slice.
 func (r *ScanResult) All() []ConfigFile {
 	all := make([]ConfigFile, 0, len(r.Managed)+len(r.User)+len(r.Project))
 	all = append(all, r.Managed...)

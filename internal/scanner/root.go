@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 )
 
-// FindProjectRoot는 startDir부터 상위로 올라가며 .git 디렉토리를 찾는다.
-// 찾으면 해당 디렉토리를, 못 찾으면 빈 문자열을 반환한다.
+// FindProjectRoot walks up from startDir looking for a .git directory.
+// It returns the directory containing .git, or an empty string if none is found.
 func FindProjectRoot(startDir string) string {
 	dir := startDir
 	for {
@@ -15,7 +15,7 @@ func FindProjectRoot(startDir string) string {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			// 루트까지 올라감, 찾지 못함
+			// Reached filesystem root without finding .git
 			return ""
 		}
 		dir = parent

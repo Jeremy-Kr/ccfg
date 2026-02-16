@@ -21,12 +21,12 @@ func TestWatcher_DetectsFileChange(t *testing.T) {
 	}
 	defer w.Close()
 
-	// 파일 변경
+	// Modify the file
 	if err := os.WriteFile(file, []byte(`{"a":2}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// 디바운스(300ms) + 여유 시간
+	// Debounce (300ms) + margin
 	select {
 	case msg := <-w.ch:
 		if _, ok := msg.(FileChangedMsg); !ok {
@@ -47,7 +47,7 @@ func TestWatcher_SkipsMissingPaths(t *testing.T) {
 	}
 	defer w.Close()
 
-	// 에러 없이 생성됐으면 성공
+	// Success if created without error
 	if w.fsw == nil {
 		t.Fatal("fsw should not be nil")
 	}

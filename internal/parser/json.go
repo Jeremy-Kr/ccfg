@@ -8,16 +8,16 @@ import (
 	"github.com/alecthomas/chroma/v2/quick"
 )
 
-// FormatJSON은 JSON/JSONC 내용을 pretty-print하고 구문 강조를 적용한다.
-// 실패하면 원본 텍스트를 반환한다.
+// FormatJSON pretty-prints JSON/JSONC content and applies syntax highlighting.
+// Returns the original text on failure.
 func FormatJSON(raw string) string {
-	// JSONC → JSON 변환 (주석, trailing comma 제거)
+	// Convert JSONC to JSON (strip comments and trailing commas)
 	cleaned := StripJSONC(raw)
 
-	// pretty-print
+	// Pretty-print
 	var parsed any
 	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
-		// 파싱 실패 → 원본에 구문 강조만 시도
+		// Parse failed; attempt syntax highlighting on the original
 		return highlightJSON(raw)
 	}
 
@@ -29,7 +29,7 @@ func FormatJSON(raw string) string {
 	return highlightJSON(string(pretty))
 }
 
-// highlightJSON은 Chroma로 JSON 구문 강조를 적용한다.
+// highlightJSON applies JSON syntax highlighting using Chroma.
 func highlightJSON(src string) string {
 	var buf bytes.Buffer
 	err := quick.Highlight(&buf, src, "json", "terminal256", "monokai")
@@ -39,7 +39,7 @@ func highlightJSON(src string) string {
 	return buf.String()
 }
 
-// stripJSONC는 JSONC의 주석과 trailing comma를 제거한다.
+// StripJSONC strips comments and trailing commas from JSONC.
 func StripJSONC(s string) string {
 	var result strings.Builder
 	runes := []rune(s)
@@ -49,7 +49,7 @@ func StripJSONC(s string) string {
 	for i < len(runes) {
 		ch := runes[i]
 
-		// 문자열 내부 처리
+		// Handle characters inside a string literal
 		if inString {
 			result.WriteRune(ch)
 			if ch == '\\' && i+1 < len(runes) {
@@ -62,7 +62,7 @@ func StripJSONC(s string) string {
 			continue
 		}
 
-		// 문자열 시작
+		// Start of a string literal
 		if ch == '"' {
 			inString = true
 			result.WriteRune(ch)
@@ -70,7 +70,7 @@ func StripJSONC(s string) string {
 			continue
 		}
 
-		// 한 줄 주석
+		// Single-line comment
 		if ch == '/' && i+1 < len(runes) && runes[i+1] == '/' {
 			for i < len(runes) && runes[i] != '\n' {
 				i++
@@ -78,25 +78,25 @@ func StripJSONC(s string) string {
 			continue
 		}
 
-		// 블록 주석
+		// Block comment
 		if ch == '/' && i+1 < len(runes) && runes[i+1] == '*' {
 			i += 2
 			for i+1 < len(runes) && !(runes[i] == '*' && runes[i+1] == '/') {
 				i++
 			}
-			i += 2 // */ 건너뛰기
+			i += 2 // Skip past */
 			continue
 		}
 
-		// trailing comma: ,] 또는 ,}
+		// Trailing comma: ,] or ,}
 		if ch == ',' {
-			// 쉼표 뒤의 공백/개행을 건너뛰고 ] 또는 }가 오는지 확인
+			// Skip whitespace/newlines after comma and check for ] or }
 			j := i + 1
 			for j < len(runes) && (runes[j] == ' ' || runes[j] == '\t' || runes[j] == '\n' || runes[j] == '\r') {
 				j++
 			}
 			if j < len(runes) && (runes[j] == ']' || runes[j] == '}') {
-				// trailing comma 생략
+				// Omit trailing comma
 				i++
 				continue
 			}

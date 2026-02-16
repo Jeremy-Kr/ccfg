@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-// Collector는 Claude Code 사용 데이터를 수집한다.
+// Collector collects Claude Code usage data.
 type Collector struct {
-	HomeDir     string // 사용자 홈 디렉토리
-	ProjectPath string // 현재 프로젝트 경로 (빈 문자열이면 프로젝트 필터링 안 함)
+	HomeDir     string // User home directory
+	ProjectPath string // Current project path (empty string disables project filtering)
 }
 
-// Collect는 지정된 범위의 사용 데이터를 수집하고 등급을 산정한다.
+// Collect gathers usage data for the given scope and assigns grades.
 func (c *Collector) Collect(scope DataScope) (*UsageData, error) {
 	projectFilter := ""
 	if scope == ScopeProject && c.ProjectPath != "" {
@@ -20,17 +20,17 @@ func (c *Collector) Collect(scope DataScope) (*UsageData, error) {
 
 	toolCounts, err := collectTools(c.HomeDir, projectFilter)
 	if err != nil {
-		return nil, fmt.Errorf("도구 수집 실패: %w", err)
+		return nil, fmt.Errorf("failed to collect tools: %w", err)
 	}
 
 	agentCounts, err := collectAgents(c.HomeDir, projectFilter)
 	if err != nil {
-		return nil, fmt.Errorf("에이전트 수집 실패: %w", err)
+		return nil, fmt.Errorf("failed to collect agents: %w", err)
 	}
 
 	skillCounts, err := collectSkills(c.HomeDir, projectFilter)
 	if err != nil {
-		return nil, fmt.Errorf("스킬 수집 실패: %w", err)
+		return nil, fmt.Errorf("failed to collect skills: %w", err)
 	}
 
 	return &UsageData{
@@ -40,9 +40,9 @@ func (c *Collector) Collect(scope DataScope) (*UsageData, error) {
 	}, nil
 }
 
-// normalizeMap은 opencode 소문자 이름을 Claude Code PascalCase로 매핑한다.
+// normalizeMap maps opencode lowercase names to Claude Code PascalCase names.
 var normalizeMap = map[string]string{
-	// 도구
+	// Tools
 	"bash":         "Bash",
 	"read":         "Read",
 	"edit":         "Edit",
@@ -56,12 +56,12 @@ var normalizeMap = map[string]string{
 	"todoread":     "TodoRead",
 	"question":     "AskUserQuestion",
 	"slashcommand": "Skill",
-	// 에이전트
+	// Agents
 	"explore": "Explore",
 	"plan":    "Plan",
 }
 
-// normalizeCounts는 동일한 도구/에이전트의 대소문자 변형을 통합한다.
+// normalizeCounts merges case variants of the same tool or agent into a single canonical name.
 func normalizeCounts(counts map[string]int) map[string]int {
 	if len(counts) == 0 {
 		return counts

@@ -7,22 +7,22 @@ var (
 	scrollTrackStyle = lipgloss.NewStyle().Foreground(colorDimGray)
 )
 
-// renderScrollbar는 세로 스크롤바 문자열 슬라이스를 반환한다.
-// 각 요소는 한 행의 스크롤바 문자(1열).
-// total: 전체 항목 수, visible: 보이는 항목 수, offset: 현재 오프셋.
-// 스크롤 불필요 시 빈 슬라이스를 반환한다.
+// renderScrollbar returns a vertical scrollbar as a slice of strings.
+// Each element is one row of the scrollbar (1 column wide).
+// total is the total item count, visible is the visible item count, and offset is the current offset.
+// Returns nil when scrolling is not needed.
 func renderScrollbar(total, visible, offset int) []string {
 	if total <= visible || visible <= 0 {
 		return nil
 	}
 
-	// thumb 크기: 최소 1행
+	// Thumb size: minimum 1 row.
 	thumbSize := visible * visible / total
 	if thumbSize < 1 {
 		thumbSize = 1
 	}
 
-	// thumb 위치
+	// Thumb position.
 	maxOffset := total - visible
 	track := visible - thumbSize
 	thumbPos := 0

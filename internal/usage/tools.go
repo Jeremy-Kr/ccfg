@@ -9,22 +9,22 @@ import (
 	"path/filepath"
 )
 
-// sessionMeta는 session-meta JSON의 필요한 필드만 파싱한다.
+// sessionMeta parses only the required fields from a session-meta JSON file.
 type sessionMeta struct {
 	ProjectPath string         `json:"project_path"`
 	ToolCounts  map[string]int `json:"tool_counts"`
 }
 
-// collectTools는 session-meta와 transcript 양쪽에서 도구별 호출 횟수를 집계한다.
+// collectTools tallies tool invocation counts from both session-meta and transcripts.
 func collectTools(homeDir, projectFilter string) (map[string]int, error) {
 	counts := make(map[string]int)
 
-	// 1) session-meta에서 수집
+	// 1) Collect from session-meta
 	if err := collectToolsFromSessionMeta(homeDir, projectFilter, counts); err != nil {
 		return nil, err
 	}
 
-	// 2) transcript에서 수집 (한 줄에 여러 tool_use가 있을 수 있어 별도 스캐너 사용)
+	// 2) Collect from transcripts (a single line may contain multiple tool_use blocks)
 	if err := collectToolsFromTranscripts(homeDir, projectFilter, counts); err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func collectToolsFromSessionMeta(homeDir, projectFilter string, counts map[strin
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("session-meta 디렉토리 읽기 실패: %w", err)
+		return fmt.Errorf("failed to read session-meta directory: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -64,8 +64,8 @@ func collectToolsFromSessionMeta(homeDir, projectFilter string, counts map[strin
 	return nil
 }
 
-// collectToolsFromTranscripts는 transcript 파일들에서 도구 사용을 직접 추출한다.
-// 한 줄에 여러 tool_use 블록이 있을 수 있어 extractFunc 대신 직접 스캔한다.
+// collectToolsFromTranscripts extracts tool usage directly from transcript files.
+// Uses a dedicated scanner instead of extractFunc because a single line may contain multiple tool_use blocks.
 func collectToolsFromTranscripts(homeDir, projectFilter string, counts map[string]int) error {
 	dirs := transcriptDirs(homeDir, projectFilter)
 	for _, dir := range dirs {
@@ -97,13 +97,13 @@ func scanFileMultiTool(path string, counts map[string]int) {
 	}
 }
 
-// extractToolsFromLine는 한 줄에서 모든 도구 이름을 추출하여 counts에 추가한다.
+// extractToolsFromLine extracts all tool names from a single line and adds them to counts.
 func extractToolsFromLine(line []byte, counts map[string]int) {
 	if !bytes.Contains(line, []byte(`"tool_use"`)) {
 		return
 	}
 
-	// opencode 형식: {"type":"tool_use", "tool_name":"Read"}
+	// opencode format: {"type":"tool_use", "tool_name":"Read"}
 	if bytes.Contains(line, []byte(`"tool_name"`)) {
 		var ol opencodeLine
 		if err := json.Unmarshal(line, &ol); err == nil && ol.ToolName != "" {
@@ -112,7 +112,7 @@ func extractToolsFromLine(line []byte, counts map[string]int) {
 		}
 	}
 
-	// Claude Code 형식: assistant 메시지 안의 tool_use 블록들
+	// Claude Code format: tool_use blocks inside an assistant message
 	if !bytes.Contains(line, []byte(`"assistant"`)) {
 		return
 	}

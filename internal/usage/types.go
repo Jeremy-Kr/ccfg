@@ -1,6 +1,6 @@
 package usage
 
-// Grade는 사용 빈도에 따른 등급을 나타낸다 (SSS ~ F).
+// Grade represents a usage frequency tier from SSS to F.
 type Grade int
 
 const (
@@ -37,7 +37,7 @@ func (g Grade) String() string {
 	}
 }
 
-// RankCategory는 랭킹의 종류를 나타낸다.
+// RankCategory represents the type of ranking.
 type RankCategory int
 
 const (
@@ -59,12 +59,12 @@ func (r RankCategory) String() string {
 	}
 }
 
-// DataScope는 데이터 범위를 나타낸다.
+// DataScope represents the data collection scope.
 type DataScope int
 
 const (
-	ScopeAll     DataScope = iota // 모든 프로젝트
-	ScopeProject                  // 현재 프로젝트만
+	ScopeAll     DataScope = iota // All projects
+	ScopeProject                  // Current project only
 )
 
 func (d DataScope) String() string {
@@ -74,7 +74,7 @@ func (d DataScope) String() string {
 	return "All"
 }
 
-// RankEntry는 랭킹 목록의 한 항목이다.
+// RankEntry represents a single item in a ranking list.
 type RankEntry struct {
 	Name     string
 	Count    int
@@ -82,7 +82,7 @@ type RankEntry struct {
 	LogScore float64
 }
 
-// UsageData는 수집된 전체 사용 데이터이다.
+// UsageData holds the collected usage data for all categories.
 type UsageData struct {
 	Agents []RankEntry
 	Tools  []RankEntry

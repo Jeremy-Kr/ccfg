@@ -8,7 +8,7 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/usage"
 )
 
-// RankingModel은 랭킹 뷰의 상태를 관리한다.
+// RankingModel manages the state of the ranking view.
 type RankingModel struct {
 	data      *usage.UsageData
 	tab       usage.RankCategory
@@ -20,7 +20,7 @@ type RankingModel struct {
 	err       error
 }
 
-// NewRankingModel은 Collector로 RankingModel을 생성한다.
+// NewRankingModel creates a RankingModel with the given Collector.
 func NewRankingModel(collector *usage.Collector) RankingModel {
 	return RankingModel{
 		tab:       usage.RankAgents,
@@ -29,7 +29,7 @@ func NewRankingModel(collector *usage.Collector) RankingModel {
 	}
 }
 
-// Load는 사용 데이터를 수집한다.
+// Load collects usage data.
 func (r *RankingModel) Load() {
 	data, err := r.collector.Collect(r.scope)
 	r.data = data
@@ -38,12 +38,12 @@ func (r *RankingModel) Load() {
 	r.offset = 0
 }
 
-// SetHeight는 표시 가능한 행 수를 설정한다.
+// SetHeight sets the number of visible rows.
 func (r *RankingModel) SetHeight(h int) {
 	r.height = h
 }
 
-// entries는 현재 탭에 해당하는 항목 리스트를 반환한다.
+// entries returns the list of entries for the current tab.
 func (r *RankingModel) entries() []usage.RankEntry {
 	if r.data == nil {
 		return nil
@@ -60,21 +60,21 @@ func (r *RankingModel) entries() []usage.RankEntry {
 	}
 }
 
-// NextTab은 다음 탭으로 이동한다.
+// NextTab moves to the next tab.
 func (r *RankingModel) NextTab() {
 	r.tab = (r.tab + 1) % 3
 	r.cursor = 0
 	r.offset = 0
 }
 
-// SetTab은 탭을 직접 설정한다.
+// SetTab sets the tab directly.
 func (r *RankingModel) SetTab(tab usage.RankCategory) {
 	r.tab = tab
 	r.cursor = 0
 	r.offset = 0
 }
 
-// ToggleScope는 범위를 전환하고 데이터를 다시 로드한다.
+// ToggleScope toggles the scope and reloads data.
 func (r *RankingModel) ToggleScope() {
 	if r.scope == usage.ScopeAll {
 		r.scope = usage.ScopeProject
@@ -84,7 +84,7 @@ func (r *RankingModel) ToggleScope() {
 	r.Load()
 }
 
-// MoveUp은 커서를 위로 이동한다.
+// MoveUp moves the cursor up.
 func (r *RankingModel) MoveUp() {
 	if r.cursor > 0 {
 		r.cursor--
@@ -92,7 +92,7 @@ func (r *RankingModel) MoveUp() {
 	}
 }
 
-// MoveDown은 커서를 아래로 이동한다.
+// MoveDown moves the cursor down.
 func (r *RankingModel) MoveDown() {
 	entries := r.entries()
 	if r.cursor < len(entries)-1 {
@@ -113,41 +113,41 @@ func (r *RankingModel) adjustScroll() {
 	}
 }
 
-// View는 랭킹 뷰를 렌더링한다.
+// View renders the ranking view.
 func (r *RankingModel) View(width, height int) string {
-	r.height = height - 3 // 탭바 + 범위바 + 구분선
+	r.height = height - 3 // Tab bar + scope bar + separator.
 
 	var b strings.Builder
 
-	// 탭바
+	// Tab bar.
 	b.WriteString(r.renderTabs(width))
 	b.WriteString("\n")
 
-	// 범위바
+	// Scope bar.
 	b.WriteString(r.renderScopeBar(width))
 	b.WriteString("\n")
 
-	// 구분선
+	// Separator.
 	sep := lipgloss.NewStyle().Foreground(colorDimGray).Render(strings.Repeat("─", width-4))
 	b.WriteString(sep)
 	b.WriteString("\n")
 
-	// 에러 표시
+	// Error display.
 	if r.err != nil {
-		errMsg := lipgloss.NewStyle().Foreground(colorRed).Render(fmt.Sprintf("오류: %v", r.err))
+		errMsg := lipgloss.NewStyle().Foreground(colorRed).Render(fmt.Sprintf("Error: %v", r.err))
 		b.WriteString(errMsg)
 		return b.String()
 	}
 
-	// 데이터 없음
+	// No data.
 	entries := r.entries()
 	if len(entries) == 0 {
-		empty := lipgloss.NewStyle().Foreground(colorDimGray).Render("  데이터 없음")
+		empty := lipgloss.NewStyle().Foreground(colorDimGray).Render("  No data")
 		b.WriteString(empty)
 		return b.String()
 	}
 
-	// 랭킹 리스트
+	// Ranking list.
 	visibleRows := r.height
 	if visibleRows < 1 {
 		visibleRows = 1
@@ -160,7 +160,7 @@ func (r *RankingModel) View(width, height int) string {
 	scrollBars := renderScrollbar(len(entries), visibleRows, r.offset)
 
 	contentW := width
-	barWidth := width - 35 // 번호(4) + 등급(6) + 이름(15) + 카운트(6) + 여백(4)
+	barWidth := width - 35 // rank(4) + grade(6) + name(15) + count(6) + padding(4).
 	if scrollBars != nil {
 		contentW = width - 1
 		barWidth--
@@ -218,8 +218,8 @@ func (r *RankingModel) renderTabs(width int) string {
 
 	tabBar := strings.Join(parts, lipgloss.NewStyle().Foreground(colorDimGray).Render(" │ "))
 
-	// 키 힌트를 오른쪽에 배치
-	hint := hudDesc.Render("1/2/3: 탭  Tab: 다음")
+	// Place key hints on the right.
+	hint := hudDesc.Render("1/2/3: tab  Tab: next")
 	pad := width - lipgloss.Width(tabBar) - lipgloss.Width(hint) - 4
 	if pad < 1 {
 		pad = 1
@@ -236,9 +236,9 @@ func (r *RankingModel) renderScopeBar(width int) string {
 		allStyle, projStyle = activeStyle.Foreground(colorYellow), inactiveStyle
 	}
 
-	scopeBar := hudDesc.Render("범위: ") + allStyle.Render(" All ") + hudDesc.Render(" / ") + projStyle.Render(" Project ")
+	scopeBar := hudDesc.Render("Scope: ") + allStyle.Render(" All ") + hudDesc.Render(" / ") + projStyle.Render(" Project ")
 
-	hint := hudDesc.Render("s: 전환")
+	hint := hudDesc.Render("s: toggle")
 	pad := width - lipgloss.Width(scopeBar) - lipgloss.Width(hint) - 4
 	if pad < 1 {
 		pad = 1
@@ -270,7 +270,7 @@ func (r *RankingModel) renderEntry(rank int, entry usage.RankEntry, barWidth int
 	}
 
 	if selected {
-		// 선택된 항목: 배경색으로 확실하게 표시
+		// Selected item: highlighted with background color.
 		sel := lipgloss.NewStyle().Bold(true).Foreground(colorYellow).Background(lipgloss.Color("#333333"))
 		bar := sel.Render(strings.Repeat("█", filled)) +
 			lipgloss.NewStyle().Foreground(lipgloss.Color("#555555")).Background(lipgloss.Color("#333333")).Render(strings.Repeat("░", empty))

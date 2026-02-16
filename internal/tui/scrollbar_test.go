@@ -8,7 +8,7 @@ import (
 )
 
 func TestRenderScrollbar_NoScrollNeeded(t *testing.T) {
-	// total <= visible이면 nil 반환
+	// Returns nil when total <= visible.
 	if got := renderScrollbar(5, 10, 0); got != nil {
 		t.Errorf("expected nil, got %v", got)
 	}
@@ -31,12 +31,12 @@ func TestRenderScrollbar_Length(t *testing.T) {
 }
 
 func TestRenderScrollbar_MinThumbSize(t *testing.T) {
-	// total이 매우 크면 thumbSize가 최소 1이어야 함
+	// When total is very large, thumbSize should be at least 1.
 	bars := renderScrollbar(10000, 5, 0)
 	if len(bars) != 5 {
 		t.Errorf("expected 5 bars, got %d", len(bars))
 	}
-	// thumb이 최소 1개 존재해야 함
+	// At least 1 thumb character must exist.
 	thumbCount := countThumb(bars)
 	if thumbCount < 1 {
 		t.Errorf("expected at least 1 thumb, got %d", thumbCount)
@@ -45,7 +45,7 @@ func TestRenderScrollbar_MinThumbSize(t *testing.T) {
 
 func TestRenderScrollbar_ThumbAtTop(t *testing.T) {
 	bars := renderScrollbar(40, 10, 0)
-	// offset=0이면 thumb이 상단에 위치
+	// When offset=0, the thumb should be at the top.
 	if len(bars) == 0 {
 		t.Fatal("expected non-nil bars")
 	}
@@ -62,7 +62,7 @@ func TestRenderScrollbar_ThumbAtBottom(t *testing.T) {
 	if len(bars) != visible {
 		t.Fatalf("expected %d bars, got %d", visible, len(bars))
 	}
-	// offset=maxOffset이면 마지막 행이 thumb이어야 함
+	// When offset=maxOffset, the last row should be a thumb.
 	thumbCount := countThumb(bars)
 	if thumbCount < 1 {
 		t.Error("expected at least 1 thumb char at bottom")
@@ -85,7 +85,7 @@ func TestPreviewView_ScrollbarInOutput(t *testing.T) {
 }
 
 func TestTreeView_ScrollbarInOutput(t *testing.T) {
-	// visibleNodes가 height보다 많으면 스크롤바 표시
+	// Scrollbar should appear when visibleNodes exceeds height.
 	roots := []TreeNode{
 		{Label: "Test", Scope: model.ScopeUser, Expanded: true},
 	}
@@ -103,7 +103,7 @@ func TestTreeView_ScrollbarInOutput(t *testing.T) {
 	}
 }
 
-// countThumb은 ANSI 스타일 적용된 thumb 문자("┃")를 포함하는 행 수를 센다.
+// countThumb counts rows that contain the ANSI-styled thumb character ("┃").
 func countThumb(bars []string) int {
 	count := 0
 	for _, b := range bars {

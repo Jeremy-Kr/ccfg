@@ -7,7 +7,7 @@ import (
 )
 
 func TestFindProjectRoot(t *testing.T) {
-	// 임시 디렉토리에 .git 구조 생성
+	// Create .git structure in temp directory
 	tmp := t.TempDir()
 	projectDir := filepath.Join(tmp, "myproject")
 	subDir := filepath.Join(projectDir, "src", "pkg")
@@ -19,19 +19,19 @@ func TestFindProjectRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 하위 디렉토리에서 프로젝트 루트를 찾아야 함
+	// Should find project root from a subdirectory
 	root := FindProjectRoot(subDir)
 	if root != projectDir {
 		t.Errorf("FindProjectRoot(%q) = %q, want %q", subDir, root, projectDir)
 	}
 
-	// 프로젝트 루트에서 자기 자신을 반환
+	// Should return itself when called from the project root
 	root = FindProjectRoot(projectDir)
 	if root != projectDir {
 		t.Errorf("FindProjectRoot(%q) = %q, want %q", projectDir, root, projectDir)
 	}
 
-	// .git이 없는 디렉토리에서는 빈 문자열
+	// Should return empty string when no .git directory exists
 	noGitDir := filepath.Join(tmp, "nogit")
 	if err := os.MkdirAll(noGitDir, 0o755); err != nil {
 		t.Fatal(err)

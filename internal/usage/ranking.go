@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// Rank는 호출 횟수 맵을 로그 스케일로 등급을 산정하고 내림차순 정렬한다.
+// Rank assigns grades on a log scale to invocation counts and sorts entries in descending order.
 func Rank(counts map[string]int) []RankEntry {
 	if len(counts) == 0 {
 		return nil

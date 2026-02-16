@@ -6,68 +6,68 @@ import (
 )
 
 var (
-	// 레트로 아케이드 색상 팔레트
-	colorYellow  = lipgloss.Color("#FFD700") // 골드 옐로우 — 제목, 포커스
-	colorOrange  = lipgloss.Color("#FF8C00") // 오렌지 — 테두리, 강조
-	colorRed     = lipgloss.Color("#FF4444") // 레드 — 미존재 파일, 경고
-	colorGreen   = lipgloss.Color("#39FF14") // 네온 그린 — 존재 파일, 성공
-	colorCyan    = lipgloss.Color("#00FFFF") // 시안 — 정보, Project scope
-	colorMagenta = lipgloss.Color("#FF00FF") // 마젠타 — 검색, 특수 강조
-	colorDimGray = lipgloss.Color("#555555") // 어두운 회색 — 비활성 테두리
+	// Retro arcade color palette.
+	colorYellow  = lipgloss.Color("#FFD700") // Gold yellow — title, focus.
+	colorOrange  = lipgloss.Color("#FF8C00") // Orange — border, accent.
+	colorRed     = lipgloss.Color("#FF4444") // Red — missing file, warning.
+	colorGreen   = lipgloss.Color("#39FF14") // Neon green — existing file, success.
+	colorCyan    = lipgloss.Color("#00FFFF") // Cyan — info, Project scope.
+	colorMagenta = lipgloss.Color("#FF00FF") // Magenta — search, special accent.
+	colorDimGray = lipgloss.Color("#555555") // Dim gray — inactive border.
 
-	// 헤더
+	// Header style.
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(colorYellow)
 
-	// 풋터 (HUD)
+	// Footer (HUD) style.
 	footerStyle = lipgloss.NewStyle().
 			Padding(0, 1)
 
-	// 패널 테두리 (포커스 없음) — Double Line
+	// Panel border (unfocused) — double line.
 	panelStyle = lipgloss.NewStyle().
 			Border(lipgloss.DoubleBorder()).
 			BorderForeground(colorDimGray).
 			Padding(0, 1)
 
-	// 패널 테두리 (포커스) — Double Line
+	// Panel border (focused) — double line.
 	panelFocusedStyle = lipgloss.NewStyle().
 				Border(lipgloss.DoubleBorder()).
 				BorderForeground(colorOrange).
 				Padding(0, 1)
 
-	// 트리 항목
+	// Tree item style.
 	treeItemStyle = lipgloss.NewStyle()
 
-	// 트리 선택된 항목
+	// Tree selected item style.
 	treeSelectedStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(colorYellow)
 
-	// Scope 헤더 스타일 (기본 — renderNode에서 Scope별로 오버라이드)
+	// Scope header style (default — overridden per scope in renderNode).
 	scopeHeaderStyle = lipgloss.NewStyle().
 				Bold(true)
 
-	// 파일 존재
+	// File exists style.
 	fileExistsStyle = lipgloss.NewStyle().
 			Foreground(colorGreen)
 
-	// 파일 미존재
+	// File missing style.
 	fileMissingStyle = lipgloss.NewStyle().
 				Foreground(colorRed)
 
-	// 디렉토리 노드
+	// Directory node style.
 	dirStyle = lipgloss.NewStyle().
 			Foreground(colorOrange)
 
-	// HUD 요소별 스타일
+	// HUD element styles.
 	hudLabelNav = lipgloss.NewStyle().Bold(true).Foreground(colorGreen)
 	hudLabelCmd = lipgloss.NewStyle().Bold(true).Foreground(colorCyan)
 	hudKey      = lipgloss.NewStyle().Bold(true).Foreground(colorYellow)
 	hudDesc     = lipgloss.NewStyle().Foreground(colorDimGray)
 	hudSep      = lipgloss.NewStyle().Foreground(colorOrange)
 
-	// 에이전트 캐릭터 카드 스타일
+	// Agent character card styles.
 	agentCardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorOrange).
@@ -75,7 +75,7 @@ var (
 	agentCardTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorYellow)
 	agentCardRoleStyle  = lipgloss.NewStyle().Foreground(colorOrange)
 
-	// 스킬 어빌리티 카드 스타일
+	// Skill ability card styles.
 	skillCardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorCyan).
@@ -84,7 +84,7 @@ var (
 	skillCardTagStyle   = lipgloss.NewStyle().Foreground(colorMagenta)
 )
 
-// 등급별 색상
+// gradeColors maps each grade to its display color.
 var gradeColors = map[usage.Grade]lipgloss.Color{
 	usage.GradeSSS: colorMagenta,
 	usage.GradeSS:  colorYellow,
@@ -96,7 +96,7 @@ var gradeColors = map[usage.Grade]lipgloss.Color{
 	usage.GradeF:   lipgloss.Color("#444444"),
 }
 
-// gradeStyle은 등급에 해당하는 스타일을 반환한다.
+// gradeStyle returns the style for the given grade.
 func gradeStyle(g usage.Grade) lipgloss.Style {
 	color, ok := gradeColors[g]
 	if !ok {
@@ -105,7 +105,7 @@ func gradeStyle(g usage.Grade) lipgloss.Style {
 	return lipgloss.NewStyle().Bold(true).Foreground(color)
 }
 
-// panelStyleFor는 포커스 상태에 따라 패널 스타일을 반환한다.
+// panelStyleFor returns the panel style based on focus state.
 func panelStyleFor(focused bool) lipgloss.Style {
 	if focused {
 		return panelFocusedStyle
