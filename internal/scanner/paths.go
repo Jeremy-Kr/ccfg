@@ -77,5 +77,6 @@ func ProjectPaths(root string) (string, []FileEntry) {
 		{RelPath: ".mcp.json", Description: "MCP 서버 프로젝트 설정", Category: model.CategoryMCP},
 		{RelPath: filepath.Join(".claude", "commands"), Description: "프로젝트 명령어", Category: model.CategoryCommands, IsDir: true},
 		{RelPath: filepath.Join(".claude", "skills"), Description: "프로젝트 스킬", Category: model.CategorySkills, IsDir: true},
+		{RelPath: filepath.Join(".claude", "agents"), Description: "프로젝트 에이전트", Category: model.CategoryAgents, IsDir: true},
 	}
 }

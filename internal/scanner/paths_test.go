@@ -54,8 +54,8 @@ func TestProjectPaths(t *testing.T) {
 	if base != "/tmp/myproject" {
 		t.Errorf("base: got %q, want /tmp/myproject", base)
 	}
-	if len(entries) != 7 {
-		t.Errorf("ProjectPaths entries 개수: got %d, want 7", len(entries))
+	if len(entries) != 8 {
+		t.Errorf("ProjectPaths entries 개수: got %d, want 8", len(entries))
 	}
 }
 
