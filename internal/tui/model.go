@@ -143,7 +143,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rankingMode = true
 			m.mergeMode = false
 			m.ranking.Load()
-			m.ranking.SetHeight(m.contentHeight() - 3)
+			m.ranking.SetHeight(m.contentHeight() - rankingHeaderRows)
 			return m, nil
 
 		case key.Matches(msg, keys.Tab):
@@ -345,6 +345,8 @@ func (m Model) updateRanking(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.ranking.SetTab(usage.RankSkills)
 		case "s":
 			m.ranking.ToggleScope()
+		case "p":
+			m.ranking.TogglePeriod()
 		}
 		return m, nil
 	}
@@ -376,6 +378,7 @@ func renderRankingHUD() string {
 
 	cmd := hudLabelCmd.Render("[CMD]") + " " +
 		hudKey.Render("s") + hudDesc.Render(" scope  ") +
+		hudKey.Render("p") + hudDesc.Render(" period  ") +
 		hudKey.Render("r/Esc") + hudDesc.Render(" close  ") +
 		hudKey.Render("q") + hudDesc.Render(" quit")
 
@@ -400,7 +403,7 @@ func (m *Model) updateLayout() {
 	m.tree.SetHeight(h)
 	m.preview.SetHeight(h)
 	m.preview.PrepareCardContent(m.previewWidth())
-	m.ranking.SetHeight(h - 3) // Tab bar + scope bar + separator.
+	m.ranking.SetHeight(h - rankingHeaderRows)
 }
 
 func (m *Model) contentHeight() int {

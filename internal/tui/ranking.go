@@ -8,11 +8,16 @@ import (
 	"github.com/jeremy-kr/ccfg/internal/usage"
 )
 
+// rankingHeaderRows is the number of rows consumed by the ranking header
+// (tab bar + scope bar + period bar + separator).
+const rankingHeaderRows = 4
+
 // RankingModel manages the state of the ranking view.
 type RankingModel struct {
 	data      *usage.UsageData
 	tab       usage.RankCategory
 	scope     usage.DataScope
+	period    usage.TimePeriod
 	cursor    int
 	offset    int
 	height    int
@@ -31,6 +36,7 @@ func NewRankingModel(collector *usage.Collector) RankingModel {
 
 // Load collects usage data.
 func (r *RankingModel) Load() {
+	r.collector.Period = r.period
 	data, err := r.collector.Collect(r.scope)
 	r.data = data
 	r.err = err
@@ -84,6 +90,12 @@ func (r *RankingModel) ToggleScope() {
 	r.Load()
 }
 
+// TogglePeriod cycles through time periods: All → 30d → 7d → 24h → All.
+func (r *RankingModel) TogglePeriod() {
+	r.period = r.period.Next()
+	r.Load()
+}
+
 // MoveUp moves the cursor up.
 func (r *RankingModel) MoveUp() {
 	if r.cursor > 0 {
@@ -115,7 +127,7 @@ func (r *RankingModel) adjustScroll() {
 
 // View renders the ranking view.
 func (r *RankingModel) View(width, height int) string {
-	r.height = height - 3 // Tab bar + scope bar + separator.
+	r.height = height - rankingHeaderRows
 
 	var b strings.Builder
 
@@ -125,6 +137,10 @@ func (r *RankingModel) View(width, height int) string {
 
 	// Scope bar.
 	b.WriteString(r.renderScopeBar(width))
+	b.WriteString("\n")
+
+	// Period bar.
+	b.WriteString(r.renderPeriodBar(width))
 	b.WriteString("\n")
 
 	// Separator.
@@ -238,12 +254,31 @@ func (r *RankingModel) renderScopeBar(width int) string {
 
 	scopeBar := hudDesc.Render("Scope: ") + allStyle.Render(" All ") + hudDesc.Render(" / ") + projStyle.Render(" Project ")
 
-	hint := hudDesc.Render("s: toggle")
+	hint := hudDesc.Render("s: scope  p: period")
 	pad := width - lipgloss.Width(scopeBar) - lipgloss.Width(hint) - 4
 	if pad < 1 {
 		pad = 1
 	}
 	return scopeBar + strings.Repeat(" ", pad) + hint
+}
+
+func (r *RankingModel) renderPeriodBar(width int) string {
+	activeStyle := lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#333333"))
+	inactiveStyle := lipgloss.NewStyle().Foreground(colorDimGray)
+
+	periods := []usage.TimePeriod{usage.PeriodAll, usage.PeriodMonth, usage.PeriodWeek, usage.PeriodDay}
+	var parts []string
+	for _, p := range periods {
+		label := fmt.Sprintf(" %s ", p)
+		if p == r.period {
+			parts = append(parts, activeStyle.Foreground(colorYellow).Render(label))
+		} else {
+			parts = append(parts, inactiveStyle.Render(label))
+		}
+	}
+
+	periodBar := hudDesc.Render("Period: ") + strings.Join(parts, hudDesc.Render(" / "))
+	return periodBar
 }
 
 func (r *RankingModel) renderEntry(rank int, entry usage.RankEntry, barWidth int, selected bool) string {

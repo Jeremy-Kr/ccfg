@@ -19,6 +19,7 @@ type keyMap struct {
 	Search   key.Binding
 	Merge    key.Binding
 	Ranking  key.Binding
+	Period   key.Binding
 	Quit     key.Binding
 }
 
@@ -66,6 +67,10 @@ var keys = keyMap{
 	Ranking: key.NewBinding(
 		key.WithKeys("r"),
 		key.WithHelp("r", "ranking"),
+	),
+	Period: key.NewBinding(
+		key.WithKeys("p"),
+		key.WithHelp("p", "period"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
