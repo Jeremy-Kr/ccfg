@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // sessionMeta parses only the required fields from a session-meta JSON file.
@@ -16,23 +17,23 @@ type sessionMeta struct {
 }
 
 // collectTools tallies tool invocation counts from both session-meta and transcripts.
-func collectTools(homeDir, projectFilter string) (map[string]int, error) {
+func collectTools(homeDir, projectFilter string, cutoff time.Time) (map[string]int, error) {
 	counts := make(map[string]int)
 
 	// 1) Collect from session-meta
-	if err := collectToolsFromSessionMeta(homeDir, projectFilter, counts); err != nil {
+	if err := collectToolsFromSessionMeta(homeDir, projectFilter, cutoff, counts); err != nil {
 		return nil, err
 	}
 
 	// 2) Collect from transcripts (a single line may contain multiple tool_use blocks)
-	if err := collectToolsFromTranscripts(homeDir, projectFilter, counts); err != nil {
+	if err := collectToolsFromTranscripts(homeDir, projectFilter, cutoff, counts); err != nil {
 		return nil, err
 	}
 
 	return counts, nil
 }
 
-func collectToolsFromSessionMeta(homeDir, projectFilter string, counts map[string]int) error {
+func collectToolsFromSessionMeta(homeDir, projectFilter string, cutoff time.Time, counts map[string]int) error {
 	dir := filepath.Join(homeDir, ".claude", "usage-data", "session-meta")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -42,9 +43,16 @@ func collectToolsFromSessionMeta(homeDir, projectFilter string, counts map[strin
 		return fmt.Errorf("failed to read session-meta directory: %w", err)
 	}
 
+	hasCutoff := !cutoff.IsZero()
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
+		}
+		// ModTime optimization: skip session-meta files older than cutoff.
+		if hasCutoff {
+			if info, err := entry.Info(); err == nil && info.ModTime().Before(cutoff) {
+				continue
+			}
 		}
 		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
 		if err != nil {
@@ -66,8 +74,9 @@ func collectToolsFromSessionMeta(homeDir, projectFilter string, counts map[strin
 
 // collectToolsFromTranscripts extracts tool usage directly from transcript files.
 // Uses a dedicated scanner instead of extractFunc because a single line may contain multiple tool_use blocks.
-func collectToolsFromTranscripts(homeDir, projectFilter string, counts map[string]int) error {
+func collectToolsFromTranscripts(homeDir, projectFilter string, cutoff time.Time, counts map[string]int) error {
 	dirs := transcriptDirs(homeDir, projectFilter)
+	hasCutoff := !cutoff.IsZero()
 	for _, dir := range dirs {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -77,23 +86,35 @@ func collectToolsFromTranscripts(homeDir, projectFilter string, counts map[strin
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".jsonl" {
 				continue
 			}
-			scanFileMultiTool(filepath.Join(dir, entry.Name()), counts)
+			if hasCutoff {
+				if info, err := entry.Info(); err == nil && info.ModTime().Before(cutoff) {
+					continue
+				}
+			}
+			scanFileMultiTool(filepath.Join(dir, entry.Name()), counts, cutoff)
 		}
 	}
 	return nil
 }
 
-func scanFileMultiTool(path string, counts map[string]int) {
+func scanFileMultiTool(path string, counts map[string]int, cutoff time.Time) {
 	f, err := os.Open(path)
 	if err != nil {
 		return
 	}
 	defer f.Close()
 
+	hasCutoff := !cutoff.IsZero()
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
-		extractToolsFromLine(scanner.Bytes(), counts)
+		line := scanner.Bytes()
+		if hasCutoff {
+			if ts, ok := extractTimestamp(line); ok && ts.Before(cutoff) {
+				continue
+			}
+		}
+		extractToolsFromLine(line, counts)
 	}
 }
 

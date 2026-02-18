@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestCollectAgents_Opencode(t *testing.T) {
@@ -22,7 +23,7 @@ func TestCollectAgents_Opencode(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(dir, "test.jsonl"), lines)
 
-	counts, err := collectAgents(home, "")
+	counts, err := collectAgents(home, "", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +56,7 @@ func TestCollectAgents_ClaudeCode(t *testing.T) {
 	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
 
 	// Verify that projects/ subdirectories are scanned in All scope
-	counts, err := collectAgents(home, "")
+	counts, err := collectAgents(home, "", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +88,7 @@ func TestCollectAgents_GeneralPurposeResolve(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
 
-	counts, err := collectAgents(home, "")
+	counts, err := collectAgents(home, "", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +115,7 @@ func TestCollectAgents_ProjectScope(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(projDir, "session.jsonl"), lines)
 
-	counts, err := collectAgents(home, "/project/foo")
+	counts, err := collectAgents(home, "/project/foo", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +139,7 @@ func TestCollectSkills_Opencode(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(dir, "test.jsonl"), lines)
 
-	counts, err := collectSkills(home, "")
+	counts, err := collectSkills(home, "", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +168,7 @@ func TestCollectSkills_ClaudeCode(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
 
-	counts, err := collectSkills(home, "")
+	counts, err := collectSkills(home, "", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +195,7 @@ func TestCollectTools_ClaudeCode(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
 
-	counts, err := collectTools(home, "")
+	counts, err := collectTools(home, "", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +249,7 @@ func TestCollectTools_SessionMeta(t *testing.T) {
 		ToolCounts:  map[string]int{"Read": 10, "Bash": 5},
 	})
 
-	counts, err := collectTools(home, "/project/a")
+	counts, err := collectTools(home, "/project/a", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}

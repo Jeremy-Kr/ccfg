@@ -7,8 +7,9 @@ import (
 
 // Collector collects Claude Code usage data.
 type Collector struct {
-	HomeDir     string // User home directory
-	ProjectPath string // Current project path (empty string disables project filtering)
+	HomeDir     string     // User home directory
+	ProjectPath string     // Current project path (empty string disables project filtering)
+	Period      TimePeriod // Time period filter
 }
 
 // Collect gathers usage data for the given scope and assigns grades.
@@ -18,17 +19,19 @@ func (c *Collector) Collect(scope DataScope) (*UsageData, error) {
 		projectFilter = c.ProjectPath
 	}
 
-	toolCounts, err := collectTools(c.HomeDir, projectFilter)
+	cutoff := c.Period.Cutoff()
+
+	toolCounts, err := collectTools(c.HomeDir, projectFilter, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect tools: %w", err)
 	}
 
-	agentCounts, err := collectAgents(c.HomeDir, projectFilter)
+	agentCounts, err := collectAgents(c.HomeDir, projectFilter, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect agents: %w", err)
 	}
 
-	skillCounts, err := collectSkills(c.HomeDir, projectFilter)
+	skillCounts, err := collectSkills(c.HomeDir, projectFilter, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect skills: %w", err)
 	}

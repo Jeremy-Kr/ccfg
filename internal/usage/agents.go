@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // opencodeLine parses an opencode-format transcript JSONL line.
@@ -40,8 +41,8 @@ type agentInput struct {
 }
 
 // collectAgents tallies agent invocations from transcripts.
-func collectAgents(homeDir, projectFilter string) (map[string]int, error) {
-	return collectFromTranscripts(homeDir, projectFilter, extractAgent)
+func collectAgents(homeDir, projectFilter string, cutoff time.Time) (map[string]int, error) {
+	return collectFromTranscripts(homeDir, projectFilter, cutoff, extractAgent)
 }
 
 func extractAgent(line []byte) (name string, ok bool) {
@@ -139,6 +140,30 @@ func extractFromClaudeCode(line []byte, match func(contentBlock) (string, bool))
 	return "", false
 }
 
+// timestampKey is the byte pattern used to locate timestamps in JSONL lines.
+var timestampKey = []byte(`"timestamp":"`)
+
+// extractTimestamp extracts the timestamp from a JSONL line without full JSON parsing.
+// It looks for "timestamp":"..." and parses the value as RFC3339.
+func extractTimestamp(line []byte) (time.Time, bool) {
+	idx := bytes.Index(line, timestampKey)
+	if idx < 0 {
+		return time.Time{}, false
+	}
+
+	start := idx + len(timestampKey)
+	end := bytes.IndexByte(line[start:], '"')
+	if end < 0 {
+		return time.Time{}, false
+	}
+
+	t, err := time.Parse(time.RFC3339Nano, string(line[start:start+end]))
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
 // transcriptDirs returns the list of transcript directories to scan.
 func transcriptDirs(homeDir, projectFilter string) []string {
 	if projectFilter != "" {
@@ -170,11 +195,11 @@ func encodeProjectPath(path string) string {
 type extractFunc func(line []byte) (name string, ok bool)
 
 // collectFromTranscripts collects data from transcript files using the given extract function.
-func collectFromTranscripts(homeDir, projectFilter string, extract extractFunc) (map[string]int, error) {
+func collectFromTranscripts(homeDir, projectFilter string, cutoff time.Time, extract extractFunc) (map[string]int, error) {
 	dirs := transcriptDirs(homeDir, projectFilter)
 	counts := make(map[string]int)
 	for _, dir := range dirs {
-		if err := scanTranscripts(dir, counts, extract); err != nil {
+		if err := scanTranscripts(dir, counts, cutoff, extract); err != nil {
 			continue
 		}
 	}
@@ -182,7 +207,7 @@ func collectFromTranscripts(homeDir, projectFilter string, extract extractFunc) 
 }
 
 // scanTranscripts scans JSONL files in a directory and extracts data using the extract function.
-func scanTranscripts(dir string, counts map[string]int, extract extractFunc) error {
+func scanTranscripts(dir string, counts map[string]int, cutoff time.Time, extract extractFunc) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -191,28 +216,42 @@ func scanTranscripts(dir string, counts map[string]int, extract extractFunc) err
 		return fmt.Errorf("failed to read transcript directory: %w", err)
 	}
 
+	hasCutoff := !cutoff.IsZero()
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".jsonl" {
 			continue
 		}
-		if err := scanFile(filepath.Join(dir, entry.Name()), counts, extract); err != nil {
+		// ModTime optimization: skip files entirely if older than cutoff.
+		if hasCutoff {
+			if info, err := entry.Info(); err == nil && info.ModTime().Before(cutoff) {
+				continue
+			}
+		}
+		if err := scanFile(filepath.Join(dir, entry.Name()), counts, cutoff, extract); err != nil {
 			continue
 		}
 	}
 	return nil
 }
 
-func scanFile(path string, counts map[string]int, extract extractFunc) error {
+func scanFile(path string, counts map[string]int, cutoff time.Time, extract extractFunc) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
+	hasCutoff := !cutoff.IsZero()
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
-		if name, ok := extract(scanner.Bytes()); ok {
+		line := scanner.Bytes()
+		if hasCutoff {
+			if ts, ok := extractTimestamp(line); ok && ts.Before(cutoff) {
+				continue
+			}
+		}
+		if name, ok := extract(line); ok {
 			counts[name]++
 		}
 	}

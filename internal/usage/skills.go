@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"strings"
+	"time"
 )
 
 // skillInput extracts the name from a skill tool_input.
@@ -13,8 +14,8 @@ type skillInput struct {
 }
 
 // collectSkills tallies skill invocations from transcripts.
-func collectSkills(homeDir, projectFilter string) (map[string]int, error) {
-	return collectFromTranscripts(homeDir, projectFilter, extractSkill)
+func collectSkills(homeDir, projectFilter string, cutoff time.Time) (map[string]int, error) {
+	return collectFromTranscripts(homeDir, projectFilter, cutoff, extractSkill)
 }
 
 func extractSkill(line []byte) (name string, ok bool) {
