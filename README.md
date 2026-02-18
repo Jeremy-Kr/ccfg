@@ -95,6 +95,7 @@ ccfg
 | `m`                | Toggle merged view                            |
 | `1/2/3`            | Switch ranking tabs (tools / agents / skills) |
 | `s`                | Toggle ranking scope (all / project)          |
+| `p`                | Cycle ranking period (All / 30d / 7d / 24h)   |
 | `q` / `Ctrl+C`     | Quit                                          |
 
 ### Flags
