@@ -1,7 +1,11 @@
 package usage
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestRank_Empty(t *testing.T) {
@@ -104,5 +108,150 @@ func TestGrade_String(t *testing.T) {
 	}
 	if GradeF.String() != "F" {
 		t.Errorf("GradeF.String() = %s", GradeF.String())
+	}
+}
+
+func TestTimePeriod_String(t *testing.T) {
+	tests := []struct {
+		p    TimePeriod
+		want string
+	}{
+		{PeriodAll, "All"},
+		{PeriodMonth, "30d"},
+		{PeriodWeek, "7d"},
+		{PeriodDay, "24h"},
+	}
+	for _, tt := range tests {
+		if got := tt.p.String(); got != tt.want {
+			t.Errorf("TimePeriod(%d).String() = %q, want %q", tt.p, got, tt.want)
+		}
+	}
+}
+
+func TestTimePeriod_Next(t *testing.T) {
+	// All → Month → Week → Day → All (cycle)
+	p := PeriodAll
+	p = p.Next()
+	if p != PeriodMonth {
+		t.Errorf("expected PeriodMonth, got %s", p)
+	}
+	p = p.Next()
+	if p != PeriodWeek {
+		t.Errorf("expected PeriodWeek, got %s", p)
+	}
+	p = p.Next()
+	if p != PeriodDay {
+		t.Errorf("expected PeriodDay, got %s", p)
+	}
+	p = p.Next()
+	if p != PeriodAll {
+		t.Errorf("expected PeriodAll, got %s", p)
+	}
+}
+
+func TestTimePeriod_Cutoff(t *testing.T) {
+	// PeriodAll returns zero time.
+	if c := PeriodAll.Cutoff(); !c.IsZero() {
+		t.Errorf("PeriodAll.Cutoff() should be zero, got %v", c)
+	}
+
+	// Other periods return a time in the past.
+	now := time.Now()
+	for _, p := range []TimePeriod{PeriodMonth, PeriodWeek, PeriodDay} {
+		c := p.Cutoff()
+		if c.IsZero() || c.After(now) {
+			t.Errorf("%s.Cutoff() should be in the past, got %v", p, c)
+		}
+	}
+}
+
+func TestExtractTimestamp(t *testing.T) {
+	ts := "2025-01-15T10:30:00.123Z"
+	line := []byte(fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{}}`, ts))
+
+	got, ok := extractTimestamp(line)
+	if !ok {
+		t.Fatal("extractTimestamp returned false")
+	}
+	want, _ := time.Parse(time.RFC3339Nano, ts)
+	if !got.Equal(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
+	// No timestamp field.
+	_, ok = extractTimestamp([]byte(`{"type":"user","message":"hello"}`))
+	if ok {
+		t.Error("expected false for line without timestamp")
+	}
+}
+
+func TestCollectWithCutoff_FiltersOldLines(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".claude", "transcripts")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now()
+	recent := now.Add(-1 * time.Hour).Format(time.RFC3339Nano)
+	old := now.Add(-48 * time.Hour).Format(time.RFC3339Nano)
+
+	lines := []string{
+		fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"code-reviewer","prompt":"review"}}]}}`, recent),
+		fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"content":[{"type":"tool_use","name":"Task","input":{"subagent_type":"librarian","prompt":"research"}}]}}`, old),
+	}
+	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
+
+	// No cutoff: both counted.
+	counts, err := collectAgents(home, "", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["code-reviewer"] != 1 || counts["librarian"] != 1 {
+		t.Errorf("no cutoff: code-reviewer=%d, librarian=%d", counts["code-reviewer"], counts["librarian"])
+	}
+
+	// Cutoff at 24h ago: only recent line counted.
+	cutoff := now.Add(-24 * time.Hour)
+	counts, err = collectAgents(home, "", cutoff)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["code-reviewer"] != 1 {
+		t.Errorf("with cutoff: code-reviewer=%d, want 1", counts["code-reviewer"])
+	}
+	if counts["librarian"] != 0 {
+		t.Errorf("with cutoff: librarian=%d, want 0 (filtered out)", counts["librarian"])
+	}
+}
+
+func TestCollectTools_WithCutoff(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".claude", "transcripts")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now()
+	recent := now.Add(-2 * time.Hour).Format(time.RFC3339Nano)
+	old := now.Add(-72 * time.Hour).Format(time.RFC3339Nano)
+
+	lines := []string{
+		fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"a.go"}}]}}`, recent),
+		fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}`, old),
+	}
+	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
+
+	// With 24h cutoff: only Read counted.
+	cutoff := now.Add(-24 * time.Hour)
+	counts, err := collectTools(home, "", cutoff)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["Read"] != 1 {
+		t.Errorf("Read: got %d, want 1", counts["Read"])
+	}
+	if counts["Bash"] != 0 {
+		t.Errorf("Bash: got %d, want 0 (filtered out)", counts["Bash"])
 	}
 }
